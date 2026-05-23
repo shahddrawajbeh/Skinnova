@@ -1,0 +1,11 @@
+backend/node_modules/
+backend/.env
+backend/uploads/
+
+frontend/build/
+frontend/.dart_tool/
+
+ai/skinnova-ai-server/venv/
+ai/venv/
+**/venv/
+**/__pycache__/
