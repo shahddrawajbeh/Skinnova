@@ -1,6 +1,33 @@
 const express = require("express");
 const router = express.Router();
 const Ad = require("../models/ad");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+const { sendPushToRole, sendPushNotification } = require("../helpers/sendPushNotification");
+
+const adUploadDir = path.join(__dirname, "../uploads/ads");
+if (!fs.existsSync(adUploadDir)) fs.mkdirSync(adUploadDir, { recursive: true });
+
+const adStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, adUploadDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `ad-${Date.now()}${ext}`);
+  },
+});
+const uploadAdImage = multer({ storage: adStorage });
+
+// ── Upload ad banner image ─────────────────────────────────────────────────
+router.post("/upload-image", uploadAdImage.single("image"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "No image uploaded" });
+    const imageUrl = `${req.protocol}://${req.get("host")}/uploads/ads/${req.file.filename}`;
+    res.status(200).json({ imageUrl });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
 
 // Store owner creates ad request
 router.post("/", async (req, res) => {
@@ -28,6 +55,14 @@ const ad = new Ad({
   status: "pending",
 });
     await ad.save();
+
+    // Notify all admins of new pending ad (fire without blocking response)
+    sendPushToRole({
+      role: "admin",
+      title: "New Ad Request 📢",
+      body: `A new ad/banner has been submitted for review.`,
+      data: { type: "new_ad_request", adId: ad._id.toString() },
+    }).catch(() => {});
 
     res.status(201).json({
       message: "Ad submitted and waiting for admin approval",
@@ -131,6 +166,17 @@ router.put("/:id/reject", async (req, res) => {
 
     if (!ad) {
       return res.status(404).json({ message: "Ad not found" });
+    }
+
+    // Notify seller
+    if (ad.sellerId) {
+      sendPushNotification({
+        userId: ad.sellerId.toString(),
+        title: "Ad Rejected",
+        body: `Your ad "${ad.title || "banner"}" was not approved. Reason: ${adminNote || "Did not meet requirements."}`,
+        type: "ad_rejected",
+        data: { type: "ad_rejected", adId: ad._id.toString() },
+      }).catch(() => {});
     }
 
     res.json({

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../api_service.dart';
 
 class RateStoresScreen extends StatefulWidget {
@@ -45,10 +46,13 @@ class _RateStoresScreenState extends State<RateStoresScreen> {
 
   Future<void> submitRating(dynamic order) async {
     final orderId = order["_id"].toString();
+    final prefs = await SharedPreferences.getInstance();
+    final userName = prefs.getString("userName") ?? "";
 
     final result = await ApiService.rateStoreForOrder(
       orderId: orderId,
       userId: widget.userId,
+      userName: userName,
       rating: ratings[orderId] ?? 0,
       comment: comments[orderId]?.text.trim() ?? "",
     );
@@ -58,10 +62,23 @@ class _RateStoresScreenState extends State<RateStoresScreen> {
         submittedOrders.add(orderId);
       });
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Store rated successfully")),
+        SnackBar(
+          content: Text(
+            "Thank you! Your review was submitted and is waiting for admin approval.",
+            style: GoogleFonts.poppins(fontSize: 13),
+          ),
+          backgroundColor: const Color(0xFF5B2333),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 4),
+        ),
       );
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result["data"]["message"] ?? "Failed to rate store"),

@@ -3,7 +3,9 @@ const GroupPost = require("../models/group_posts");
 const Group = require("../models/group");
 const Product = require("../models/product");
 const multer = require("multer");
+const { getAppSettings } = require("../helpers/getAppSettings");
 const path = require("path");
+const { sendPushNotification } = require("../helpers/sendPushNotification");
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
@@ -18,6 +20,10 @@ const router = express.Router();
 
 router.post("/review", async (req, res) => {
   try {
+    const settings = await getAppSettings();
+    if (!settings.allowGroupPosts) {
+      return res.status(403).json({ message: "Community posting is currently disabled." });
+    }
     const {
       userId,
       userName,
@@ -76,6 +82,10 @@ usageWeeks: usageWeeks || "",
 });
 router.post("/question", async (req, res) => {
   try {
+    const settings = await getAppSettings();
+    if (!settings.allowGroupPosts) {
+      return res.status(403).json({ message: "Community posting is currently disabled." });
+    }
     const {
       userId,
       userName,
@@ -123,12 +133,16 @@ router.post("/question", async (req, res) => {
     });
   }
 });
+// Shared visibility filter for public-facing queries
+const publicFilter = { isHidden: { $ne: true }, approvalStatus: { $ne: "rejected" } };
+
 router.get("/product-category-discussion/:groupSlug", async (req, res) => {
   try {
     const groupSlug = req.params.groupSlug.trim().toLowerCase();
 
     const posts = await GroupPost.find({
       groupSlug: groupSlug,
+      ...publicFilter,
     }).sort({ createdAt: -1 });
 
     res.status(200).json(posts);
@@ -175,12 +189,11 @@ router.get("/group/:groupSlug", async (req, res) => {
     const relatedProductNames = relatedProducts.map((p) => p.name);
 
     const posts = await GroupPost.find({
+      ...publicFilter,
       $or: [
         { groupSlug: group.slug },
-
         { productId: { $in: relatedProductIds } },
         { productName: { $in: relatedProductNames } },
-
         { content: { $regex: key, $options: "i" } },
         { productName: { $regex: key, $options: "i" } },
         { tag: { $regex: key, $options: "i" } },
@@ -200,6 +213,7 @@ router.get("/product-review-posts/:productId", async (req, res) => {
     const posts = await GroupPost.find({
       productId: req.params.productId,
       postType: "review",
+      ...publicFilter,
     }).sort({ createdAt: -1 });
 
     res.status(200).json(posts);
@@ -216,6 +230,7 @@ router.get("/medication-discussion/:groupSlug", async (req, res) => {
 
     const posts = await GroupPost.find({
       groupSlug: groupSlug,
+      ...publicFilter,
     }).sort({ createdAt: -1 });
 
     res.status(200).json(posts);
@@ -228,7 +243,7 @@ router.get("/medication-discussion/:groupSlug", async (req, res) => {
 });
 router.get("/", async (req, res) => {
   try {
-    const posts = await GroupPost.find().sort({ createdAt: -1 });
+    const posts = await GroupPost.find(publicFilter).sort({ createdAt: -1 });
     res.status(200).json(posts);
   } catch (error) {
     console.log("GET POSTS ERROR:", error);
@@ -279,6 +294,18 @@ router.put("/:id/like", async (req, res) => {
 
     await post.save();
 
+    // Notify post owner when liked (not on unlike, not self-like)
+    if (!alreadyLiked && post.userId && post.userId.toString() !== userId) {
+      sendPushNotification({
+        userId: post.userId.toString(),
+        title: "Someone liked your post ❤️",
+        body: "Your post received a new like",
+        type: "post_like",
+        postId: post._id.toString(),
+        data: { type: "post_like", postId: post._id.toString() },
+      }).catch(() => {});
+    }
+
     res.status(200).json({
       message: alreadyLiked ? "Post unliked" : "Post liked",
       likes: post.likes,
@@ -324,6 +351,18 @@ const {
 
     post.comments.push(newComment);
     await post.save();
+
+    // Notify post owner of new comment (skip if commenter is the post owner)
+    if (post.userId && post.userId.toString() !== userId) {
+      sendPushNotification({
+        userId: post.userId.toString(),
+        title: "New comment on your post 💬",
+        body: `${userName || "Someone"}: ${comment.trim().substring(0, 60)}`,
+        type: "post_comment",
+        postId: post._id.toString(),
+        data: { type: "post_comment", postId: post._id.toString() },
+      }).catch(() => {});
+    }
 
     res.status(201).json({
       message: "Comment added successfully",

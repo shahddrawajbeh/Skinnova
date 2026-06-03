@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'skinova_ai_scan_flow.dart';
+import 'package:skinnova/features/skin_ai/screens/skin_camera_screen.dart';
+import 'package:skinnova/screens/my_skin_routine_page.dart';
 
 class TrackerPage extends StatelessWidget {
-  const TrackerPage({super.key});
+  final String userId;
+
+  const TrackerPage({
+    super.key,
+    required this.userId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -12,31 +19,64 @@ class TrackerPage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           backgroundColor: Colors.white,
           elevation: 0,
-          centerTitle: true,
-          title: Text(
-            'Tracker',
-            style: GoogleFonts.poppins(
-              color: Colors.black,
-              fontSize: 22,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          bottom: TabBar(
-            labelColor: Colors.black,
-            unselectedLabelColor: Colors.black54,
-            indicatorColor: Colors.black,
-            tabs: const [
-              Tab(text: 'Diary'),
-              Tab(text: 'Progress'),
+          centerTitle: false,
+          title: Row(
+            children: [
+              const SizedBox(width: 40),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    'My Skin Tracker',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 40),
             ],
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(58),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              child: Container(
+                height: 44,
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F4F3),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: TabBar(
+                  indicator: BoxDecoration(
+                    color: const Color(0xFF5B2333),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.black54,
+                  tabs: const [
+                    Tab(text: 'Routine'),
+                    Tab(text: 'AI Scan'),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
         body: TabBarView(
           children: [
-            const DiaryTab(),
-            SkinovaAiScanFlow(),
+            MySkinRoutinePage(
+              userId: userId,
+              showBackButton: false,
+            ),
+            SkinCameraScreen(userId: userId),
           ],
         ),
       ),

@@ -184,6 +184,11 @@ reviews: [
       type: Boolean,
       default: true,
     },
+
+    isHidden: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

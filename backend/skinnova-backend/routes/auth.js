@@ -1,9 +1,14 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
+const { OAuth2Client } = require("google-auth-library");
 const User = require("../models/user");
 const multer = require("multer");
 const path = require("path");
 const GroupPost = require("../models/group_posts");
+const { getAppSettings } = require("../helpers/getAppSettings");
+const { sendPushNotification } = require("../helpers/sendPushNotification");
+const { sendEmail, otpEmailHtml } = require("../helpers/sendEmail");
 
 const router = express.Router();
 
@@ -11,6 +16,12 @@ router.post("/register", async (req, res) => {
   try {
     console.log("🔥 REGISTER HIT");
     console.log("BODY:", req.body);
+
+    // Feature flag: allowNewRegistrations
+    const settings = await getAppSettings();
+    if (!settings.allowNewRegistrations) {
+      return res.status(403).json({ message: "New registrations are currently disabled." });
+    }
 
     const { fullName, email, password } = req.body;
     const normalizedEmail = email.trim().toLowerCase();
@@ -60,7 +71,11 @@ router.post("/login", async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
-
+if (user.isActive === false) {
+  return res.status(403).json({
+    message: "Your account has been deactivated. Please contact Skinova support at support@skinova.com.",
+  });
+}
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Incorrect password" });
@@ -158,6 +173,7 @@ router.get("/user/:userId", async (req, res) => {
     const user = await User.findById(userId)
        .select("-password")
   .populate("favorites", "name brand imageUrl category rating")
+  .populate("recentlyUsedProducts", "name brand imageUrl category rating")
   .populate("followers", "fullName profileImage")
   .populate("following", "fullName profileImage");
 
@@ -243,33 +259,38 @@ router.put("/remove-profile-image/:id", async (req, res) => {
 router.put("/update-profile/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { fullName, email, profileImage, onboarding } = req.body;
+    const { fullName, email, profileImage, onboarding, bio, city } = req.body;
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      {
-        fullName,
-        email,
-        profileImage,
-        onboarding,
-      },
-      { new: true }
-    ).select("-password");
+    // Email uniqueness check
+    if (email) {
+      const emailTaken = await User.findOne({
+        email: email.toLowerCase().trim(),
+        _id: { $ne: userId },
+      });
+      if (emailTaken) {
+        return res.status(400).json({ message: "Email already in use by another account" });
+      }
+    }
+
+    const updateData = {};
+    if (fullName !== undefined) updateData.fullName = fullName.trim();
+    if (email !== undefined) updateData.email = email.toLowerCase().trim();
+    if (profileImage !== undefined) updateData.profileImage = profileImage;
+    if (onboarding !== undefined) updateData.onboarding = onboarding;
+    if (bio !== undefined) updateData.bio = bio.trim();
+    if (city !== undefined) updateData.city = city.trim();
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true })
+      .select("-password");
 
     if (!updatedUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.status(200).json({
-      message: "Profile updated successfully",
-      user: updatedUser,
-    });
+    res.status(200).json({ message: "Profile updated successfully", user: updatedUser });
   } catch (error) {
     console.log("❌ UPDATE PROFILE ERROR:", error);
-    res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 router.post("/user/:userId/collections", async (req, res) => {
@@ -338,72 +359,48 @@ router.get("/public/:id", async (req, res) => {
 router.put("/collection/:collectionId", async (req, res) => {
   try {
     const { collectionId } = req.params;
-    const { title } = req.body;
+    const { title, userId } = req.body;
 
-    const user = await User.findOne({
-      "collections._id": collectionId,
-    });
+    const user = await User.findOne({ "collections._id": collectionId });
+    if (!user) return res.status(404).json({ message: "Collection not found" });
 
-    if (!user) {
-      return res.status(404).json({
-        message: "Collection not found",
-      });
+    if (userId && user._id.toString() !== userId) {
+      return res.status(403).json({ message: "Forbidden: not your collection" });
     }
 
     const collection = user.collections.id(collectionId);
-
     collection.title = title;
-
     await user.save();
 
-    res.status(200).json({
-      message: "Collection updated successfully",
-      collections: user.collections,
-    });
+    res.status(200).json({ message: "Collection updated successfully", collections: user.collections });
   } catch (error) {
     console.log("❌ UPDATE COLLECTION ERROR:", error);
-    res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 router.delete("/collection/:collectionId", async (req, res) => {
   try {
     const { collectionId } = req.params;
+    const { userId } = req.body;
 
-    const user = await User.findOne({
-      "collections._id": collectionId,
-    });
+    const user = await User.findOne({ "collections._id": collectionId });
+    if (!user) return res.status(404).json({ message: "Collection not found" });
 
-    if (!user) {
-      return res.status(404).json({
-        message: "Collection not found",
-      });
+    if (userId && user._id.toString() !== userId) {
+      return res.status(403).json({ message: "Forbidden: not your collection" });
     }
 
     const collection = user.collections.id(collectionId);
-
-    if (!collection) {
-      return res.status(404).json({
-        message: "Collection not found",
-      });
-    }
+    if (!collection) return res.status(404).json({ message: "Collection not found" });
 
     collection.deleteOne();
-
     await user.save();
 
-    res.status(200).json({
-      message: "Collection deleted successfully",
-      collections: user.collections,
-    });
+    res.status(200).json({ message: "Collection deleted successfully", collections: user.collections });
   } catch (error) {
     console.log("❌ DELETE COLLECTION ERROR:", error);
-    res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
@@ -498,31 +495,51 @@ router.get("/user/:userId/saved-posts", async (req, res) => {
 router.put("/collection/:collectionId/add-product", async (req, res) => {
   try {
     const { collectionId } = req.params;
-    const { imageUrl } = req.body;
+    const { imageUrl, userId } = req.body;
 
     const user = await User.findOne({ "collections._id": collectionId });
+    if (!user) return res.status(404).json({ message: "Collection not found" });
 
-    if (!user) {
-      return res.status(404).json({ message: "Collection not found" });
+    if (userId && user._id.toString() !== userId) {
+      return res.status(403).json({ message: "Forbidden: not your collection" });
     }
 
     const collection = user.collections.id(collectionId);
-
     if (!collection.images.includes(imageUrl)) {
       collection.images.push(imageUrl);
     }
 
     await user.save();
-
-    res.status(200).json({
-      message: "Product added to collection",
-      collection,
-    });
+    res.status(200).json({ message: "Product added to collection", collection });
   } catch (error) {
-    res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// ── Remove product from collection ─────────────────────────────────────────
+router.put("/collection/:collectionId/remove-product", async (req, res) => {
+  try {
+    const { collectionId } = req.params;
+    const { imageUrl, userId } = req.body;
+
+    if (!imageUrl) return res.status(400).json({ message: "imageUrl is required" });
+
+    const user = await User.findOne({ "collections._id": collectionId });
+    if (!user) return res.status(404).json({ message: "Collection not found" });
+
+    if (userId && user._id.toString() !== userId) {
+      return res.status(403).json({ message: "Forbidden: not your collection" });
+    }
+
+    const collection = user.collections.id(collectionId);
+    if (!collection) return res.status(404).json({ message: "Collection not found" });
+
+    collection.images = collection.images.filter(img => img !== imageUrl);
+    await user.save();
+
+    res.status(200).json({ message: "Product removed from collection", collection });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 router.post("/:id/follow", async (req, res) => {
@@ -541,6 +558,19 @@ router.post("/:id/follow", async (req, res) => {
     await User.findByIdAndUpdate(currentUserId, {
       $addToSet: { following: targetUserId },
     });
+
+    // Notify followed user (fire without blocking)
+    User.findById(currentUserId).select("fullName").then((follower) => {
+      if (follower) {
+        sendPushNotification({
+          userId: targetUserId,
+          title: "New Follower 👤",
+          body: `${follower.fullName} started following you`,
+          type: "new_follower",
+          data: { type: "new_follower", followerId: currentUserId },
+        }).catch(() => {});
+      }
+    }).catch(() => {});
 
     res.json({ message: "Followed successfully" });
   } catch (error) {
@@ -566,4 +596,368 @@ router.post("/:id/unfollow", async (req, res) => {
     res.status(500).json({ message: "Unfollow failed", error: error.message });
   }
 });
+router.put("/recently-used/remove", async (req, res) => {
+  try {
+    const { userId, productId } = req.body;
+
+    if (!userId || !productId) {
+      return res.status(400).json({ message: "userId and productId are required" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $pull: { recentlyUsedProducts: productId } },
+      { new: true }
+    ).populate("recentlyUsedProducts", "name brand imageUrl category rating");
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.status(200).json(user.recentlyUsedProducts);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to remove recently used product",
+      error: error.message,
+    });
+  }
+});
+
+router.post("/recently-used", async (req, res) => {
+  try {
+    const { userId, productId } = req.body;
+
+    if (!userId || !productId) {
+      return res.status(400).json({ message: "userId and productId are required" });
+    }
+
+    await User.findByIdAndUpdate(userId, {
+      $pull: { recentlyUsedProducts: productId },
+    });
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        $push: {
+          recentlyUsedProducts: {
+            $each: [productId],
+            $position: 0,
+            $slice: 10,
+          },
+        },
+      },
+      { new: true }
+    ).populate("recentlyUsedProducts", "name brand imageUrl category rating");
+
+    res.status(200).json(user.recentlyUsedProducts);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to add recently used product",
+      error: error.message,
+    });
+  }
+});
+// PUT /api/auth/user/:userId/hide-store/:storeId
+router.put("/user/:userId/hide-store/:storeId", async (req, res) => {
+  try {
+    const { userId, storeId } = req.params;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $addToSet: { hiddenStores: storeId } },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "Store hidden successfully", hiddenStores: user.hiddenStores });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// GET /api/auth/user/:userId/followed-stores — returns populated store objects
+router.get("/user/:userId/followed-stores", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId)
+      .select("followedStores")
+      .populate("followedStores", "storeName logoUrl city followersCount rating");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json(user.followedStores);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// GET /api/auth/user/:userId/hidden-stores — returns populated store objects
+router.get("/user/:userId/hidden-stores", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId)
+      .select("hiddenStores")
+      .populate("hiddenStores", "storeName logoUrl city rating");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json(user.hiddenStores);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// PUT /api/auth/user/:userId/unhide-store/:storeId
+router.put("/user/:userId/unhide-store/:storeId", async (req, res) => {
+  try {
+    const { userId, storeId } = req.params;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $pull: { hiddenStores: storeId } },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "Store unhidden successfully", hiddenStores: user.hiddenStores });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+router.get("/product/:productId/recently-used-users", async (req, res) => {
+  try {
+    const { productId } = req.params;
+
+    const users = await User.find({
+      recentlyUsedProducts: productId,
+    }).select("fullName profileImage");
+
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch users",
+      error: error.message,
+    });
+  }
+});
+// ── Change password ────────────────────────────────────────────────────────
+router.put("/change-password/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "currentPassword and newPassword are required" });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "New password must be at least 6 characters" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Current password is incorrect" });
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    res.status(200).json({ message: "Password changed successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// ── Delete account ─────────────────────────────────────────────────────────
+router.delete("/delete-account/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findByIdAndDelete(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// ── Scan privacy ───────────────────────────────────────────────────────────
+router.get("/scan-privacy/:userId", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select("scanPrivacy");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json(user.scanPrivacy || {
+      allowScanHistory: true,
+      allowPersonalizedRecommendations: true,
+      allowImageStorage: true,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+router.put("/scan-privacy/:userId", async (req, res) => {
+  try {
+    const { allowScanHistory, allowPersonalizedRecommendations, allowImageStorage } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      {
+        "scanPrivacy.allowScanHistory": allowScanHistory,
+        "scanPrivacy.allowPersonalizedRecommendations": allowPersonalizedRecommendations,
+        "scanPrivacy.allowImageStorage": allowImageStorage,
+      },
+      { new: true }
+    ).select("scanPrivacy");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json(user.scanPrivacy);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// ── POST /api/auth/forgot-password ────────────────────────────────────────────
+// Generates a 6-digit OTP and sends it to the user's email.
+// Always returns the same response for security (does not reveal if email exists).
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const email = (req.body.email || "").trim().toLowerCase();
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (user) {
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const hashedOtp = await bcrypt.hash(otp, 10);
+
+      user.resetOtp = hashedOtp;
+      user.resetOtpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+      await user.save();
+
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: "Reset your Skinova password",
+          html: otpEmailHtml(otp),
+        });
+      } catch (emailErr) {
+        console.error("[forgot-password] email send error:", emailErr.message);
+      }
+    }
+
+    res.status(200).json({
+      message: "If this email is registered, we sent reset instructions.",
+    });
+  } catch (err) {
+    console.error("forgot-password error:", err.message);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ── POST /api/auth/reset-password ─────────────────────────────────────────────
+// Verifies the OTP and updates the password.
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ message: "Email, OTP, and new password are required" });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    if (!user || !user.resetOtp || !user.resetOtpExpires) {
+      return res.status(400).json({ message: "Invalid or expired reset code" });
+    }
+    if (user.resetOtpExpires < new Date()) {
+      user.resetOtp = null;
+      user.resetOtpExpires = null;
+      await user.save();
+      return res.status(400).json({ message: "Reset code has expired. Please request a new one." });
+    }
+
+    const isValid = await bcrypt.compare(otp.trim(), user.resetOtp);
+    if (!isValid) {
+      return res.status(400).json({ message: "Incorrect reset code. Please try again." });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.resetOtp = null;
+    user.resetOtpExpires = null;
+    await user.save();
+
+    res.status(200).json({ message: "Password reset successfully" });
+  } catch (err) {
+    console.error("reset-password error:", err.message);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ── POST /api/auth/google ──────────────────────────────────────────────────────
+// Verify a Google idToken, create the user if they don't exist, return session data.
+router.post("/google", async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ message: "idToken is required" });
+    }
+
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      console.error("[google auth] GOOGLE_CLIENT_ID env var not set");
+      return res.status(500).json({ message: "Google Sign-In is not configured" });
+    }
+
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    let payload;
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch {
+      return res.status(401).json({ message: "Invalid Google token" });
+    }
+
+    const { email, name, sub: googleId } = payload;
+    if (!email) {
+      return res.status(400).json({ message: "Google account has no email" });
+    }
+
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      user = new User({
+        fullName: name || email.split("@")[0],
+        email: email.toLowerCase(),
+        password: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10),
+        googleId,
+        profileProvider: "google",
+        role: "user",
+      });
+      await user.save();
+    } else if (!user.googleId) {
+      user.googleId = googleId;
+      if (user.profileProvider === "email") user.profileProvider = "google";
+      await user.save();
+    }
+
+    if (user.isActive === false) {
+      return res.status(403).json({
+        message: "Your account has been deactivated. Please contact Skinova support.",
+      });
+    }
+
+    res.status(200).json({
+      message: "Login successful",
+      userId: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+    });
+  } catch (err) {
+    console.error("google auth error:", err.message);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;

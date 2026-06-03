@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../api_service.dart';
 import '../product_model.dart';
+import '../helpers/feature_flags.dart';
 import 'product_details_screen.dart';
 
 class ScanPage extends StatefulWidget {
@@ -214,6 +215,9 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
   }
 
   Future<void> _pickFromGallery() async {
+    // Feature flag: allowProductScans
+    if (!await checkFeatureFlag(context, 'allowProductScans',
+        blockedMessage: 'Product scans are currently disabled.')) return;
     try {
       final XFile? picked = await _picker.pickImage(
         source: ImageSource.gallery,

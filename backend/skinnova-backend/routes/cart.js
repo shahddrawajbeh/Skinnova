@@ -4,6 +4,7 @@ const router = express.Router();
 
 const Cart = require("../models/cart");
 const Product = require("../models/product");
+const StoreProduct = require("../models/storeProduct");
 
 // add product to cart
 router.post("/add", async (req, res) => {
@@ -28,43 +29,58 @@ router.post("/add", async (req, res) => {
 
     const productExists = await Product.findById(productId);
     if (!productExists) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // ── Stock validation ──────────────────────────────────────────────────────
+    const storeProduct = await StoreProduct.findOne({ storeId, productId });
+    if (!storeProduct) {
       return res.status(404).json({
-        message: "Product not found",
+        message: "This product is not available in this store.",
+      });
+    }
+    if (!storeProduct.isAvailable || storeProduct.stockCount <= 0) {
+      return res.status(400).json({
+        message: "This product is currently out of stock in this store.",
       });
     }
 
+    const requestedQty = quantity || 1;
+
+    // Read cart once to check existing quantity in cart
     let cart = await Cart.findOne({ userId });
+    let currentCartQty = 0;
+    if (cart) {
+      const existingItem = cart.items.find(
+        (item) =>
+          item.productId.toString() === productId &&
+          item.storeId?.toString() === storeId
+      );
+      if (existingItem) currentCartQty = existingItem.quantity;
+    }
+
+    if (currentCartQty + requestedQty > storeProduct.stockCount) {
+      return res.status(400).json({
+        message: `Only ${storeProduct.stockCount} item${storeProduct.stockCount === 1 ? "" : "s"} available in stock.`,
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     if (!cart) {
-     cart = new Cart({
-  userId,
-  items: [
-    {
-      productId,
-      storeId,
-      quantity: quantity || 1,
-      price,
-      currency: currency || "ILS",
-    },
-  ],
-});
+      cart = new Cart({
+        userId,
+        items: [{ productId, storeId, quantity: requestedQty, price, currency: currency || "ILS" }],
+      });
     } else {
       const existingItem = cart.items.find(
-  (item) =>
-    item.productId.toString() === productId &&
-    item.storeId?.toString() === storeId
-);
-
+        (item) =>
+          item.productId.toString() === productId &&
+          item.storeId?.toString() === storeId
+      );
       if (existingItem) {
-        existingItem.quantity += quantity || 1;
+        existingItem.quantity += requestedQty;
       } else {
-        cart.items.push({
-  productId,
-  storeId,
-  quantity: quantity || 1,
-  price,
-  currency: currency || "ILS",
-});
+        cart.items.push({ productId, storeId, quantity: requestedQty, price, currency: currency || "ILS" });
       }
     }
 
@@ -75,10 +91,7 @@ router.post("/add", async (req, res) => {
       cart,
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
@@ -151,44 +164,47 @@ if (!userId || !productId || !storeId) {      return res.status(400).json({
 });
 router.put("/update", async (req, res) => {
   try {
-const { userId, productId, storeId, quantity } = req.body;
-if (!userId || !productId || !storeId || quantity == null) {      return res.status(400).json({
+    const { userId, productId, storeId, quantity } = req.body;
+    if (!userId || !productId || !storeId || quantity == null) {
+      return res.status(400).json({
         message: "userId, productId, storeId and quantity are required",
       });
     }
 
-    const cart = await Cart.findOne({ userId });
-
-    if (!cart) {
-      return res.status(404).json({
-        message: "Cart not found",
+    // ── Stock validation ──────────────────────────────────────────────────────
+    const storeProduct = await StoreProduct.findOne({ storeId, productId });
+    if (!storeProduct || !storeProduct.isAvailable || storeProduct.stockCount <= 0) {
+      return res.status(400).json({
+        message: "This product is currently out of stock in this store.",
       });
+    }
+    if (quantity > storeProduct.stockCount) {
+      return res.status(400).json({
+        message: `Only ${storeProduct.stockCount} item${storeProduct.stockCount === 1 ? "" : "s"} available in stock.`,
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const cart = await Cart.findOne({ userId });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
     }
 
     const item = cart.items.find(
-  (item) =>
-    item.productId.toString() === productId &&
-    item.storeId?.toString() === storeId
-);
-
+      (item) =>
+        item.productId.toString() === productId &&
+        item.storeId?.toString() === storeId
+    );
     if (!item) {
-      return res.status(404).json({
-        message: "Product not found in cart",
-      });
+      return res.status(404).json({ message: "Product not found in cart" });
     }
 
     item.quantity = quantity;
     await cart.save();
 
-    res.status(200).json({
-      message: "Cart quantity updated",
-      cart,
-    });
+    res.status(200).json({ message: "Cart quantity updated", cart });
   } catch (error) {
-    res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 

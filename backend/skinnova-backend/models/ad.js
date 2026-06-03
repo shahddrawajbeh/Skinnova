@@ -57,6 +57,26 @@ sellerId: {
       type: Boolean,
       default: true,
     },
+
+    // Where the banner appears in the app
+    placement: {
+      type: String,
+      enum: ["home", "shop", "store", "other"],
+      default: "home",
+    },
+
+    // What happens when user taps the banner
+    actionType: {
+      type: String,
+      enum: ["store", "product", "category", "link", "none"],
+      default: "none",
+    },
+
+    // The target ID or URL for the action
+    actionTarget: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );

@@ -57,16 +57,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       List<AppUserModel> loadedPeople = [];
       final currentUser = await ApiService.fetchUserProfile(widget.userId);
 
-      // if (loadedGroup.groupType == "product_categories") {
-      //   loadedProducts = await ApiService.fetchGroupProducts(widget.groupSlug);
-      //   discussionPosts = await ApiService.fetchProductCategoryDiscussionPosts(
-      //       widget.groupSlug);
-      //   discussionLoading = false;
-      // } else {
-      //   loadedPeople = await ApiService.fetchGroupPeople(widget.groupSlug);
-      //   discussionPosts = await ApiService.fetchPostsByGroup(widget.groupSlug);
-      //   discussionLoading = false;
-      // }
       if (loadedGroup.groupType == "product_categories") {
         loadedProducts = await ApiService.fetchGroupProducts(widget.groupSlug);
         discussionPosts = await ApiService.fetchProductCategoryDiscussionPosts(
@@ -89,19 +79,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
         discussionLoading = false;
         medicationsLoading = false;
-      }
-      // } else if (loadedGroup.groupType == "medications") {
-      //   loadedProducts = await ApiService.fetchProductsByConcern(
-      //     loadedGroup.categoryKey,
-      //   );
-
-      //   loadedPeople = await ApiService.fetchGroupPeople(widget.groupSlug);
-      //   discussionPosts = await ApiService.fetchMedicationDiscussionPosts(
-      //     widget.groupSlug,
-      //   );
-      //   discussionLoading = false;
-      // }
-      else {
+      } else {
         loadedPeople = await ApiService.fetchGroupPeople(widget.groupSlug);
         discussionPosts = await ApiService.fetchPostsByGroup(widget.groupSlug);
         discussionLoading = false;
@@ -1129,14 +1107,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       style: GoogleFonts.poppins(
                         fontSize: 15,
                         color: const Color(0xFF444444),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      "${product.currency} ${product.price}",
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: Colors.grey,
                       ),
                     ),
                   ],

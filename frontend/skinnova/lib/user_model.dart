@@ -46,10 +46,13 @@ class UserModel {
   final String role;
   final OnboardingModel onboarding;
   final String? profileImage;
+  final String bio;
+  final String city;
   final List<UserCollectionModel> collections;
   final List<FavoriteProductModel> favorites;
   final List<FollowUserModel> followers;
   final List<FollowUserModel> following;
+  final List<FavoriteProductModel> recentlyUsedProducts;
 
   UserModel({
     required this.id,
@@ -58,10 +61,13 @@ class UserModel {
     required this.role,
     required this.onboarding,
     this.profileImage,
+    this.bio = '',
+    this.city = '',
     required this.collections,
     this.favorites = const [],
     required this.followers,
     required this.following,
+    this.recentlyUsedProducts = const [],
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -71,7 +77,9 @@ class UserModel {
       email: json['email'] ?? '',
       role: json['role'] ?? '',
       onboarding: OnboardingModel.fromJson(json['onboarding'] ?? {}),
-      profileImage: json['profileImage'] ?? null,
+      profileImage: json['profileImage'],
+      bio: json['bio'] ?? '',
+      city: json['city'] ?? '',
       collections: (json['collections'] as List<dynamic>?)
               ?.map((e) => UserCollectionModel.fromJson(e))
               .toList() ??
@@ -86,6 +94,10 @@ class UserModel {
       following: (json['following'] as List? ?? [])
           .map((e) => FollowUserModel.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
+      recentlyUsedProducts: (json['recentlyUsedProducts'] as List<dynamic>?)
+              ?.map((e) => FavoriteProductModel.fromJson(e))
+              .toList() ??
+          [],
     );
   }
 }

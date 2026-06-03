@@ -1,30 +1,7 @@
 const User = require("../models/user");
-const mongoose = require("mongoose");
-const groupMembershipSchema = new mongoose.Schema(
-  {
-    groupId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Group",
-      required: true,
-    },
-    userId: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-  },
-  { timestamps: true }
-);
-
-groupMembershipSchema.index({ groupId: 1, userId: 1 }, { unique: true });
-
-const GroupMembership = mongoose.model("GroupMembership", groupMembershipSchema);
-
-
-
-
 const express = require("express");
 const Group = require("../models/group");
+const GroupMembership = require("../models/GroupMembership");
 const Product = require("../models/product");
 
 const router = express.Router();

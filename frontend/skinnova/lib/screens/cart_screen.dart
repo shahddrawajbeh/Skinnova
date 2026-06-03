@@ -70,7 +70,7 @@ class _CartScreenState extends State<CartScreen> {
     dynamic price,
     String currency,
   ) async {
-    await ApiService.addToCart(
+    final result = await ApiService.addToCart(
       userId: widget.userId,
       productId: productId,
       storeId: storeId,
@@ -78,7 +78,12 @@ class _CartScreenState extends State<CartScreen> {
       price: price,
       currency: currency,
     );
-    await loadCart();
+    if (result["statusCode"] == 200) {
+      await loadCart();
+    } else {
+      final msg = result["data"]["message"] ?? "Could not increase quantity.";
+      _showPrettySnackBar(msg);
+    }
   }
 
   Future<void> decreaseQuantity(
@@ -367,7 +372,7 @@ class _CartScreenState extends State<CartScreen> {
           const SizedBox(width: 14),
           Expanded(
             child: SizedBox(
-              height: 110,
+              height: 120,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

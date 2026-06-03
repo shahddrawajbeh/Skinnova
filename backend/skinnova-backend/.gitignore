@@ -1,3 +1,5 @@
 .env
 node_modules/
 uploads/
+
+frontend/skinnova/lib/config/api_config.dart

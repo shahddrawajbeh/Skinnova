@@ -38,12 +38,22 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-     role: {
+    role: {
       type: String,
-      enum: ["user", "admin"],
+      enum: ["user", "seller", "admin"],
       default: "user",
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
     favorites: [
+  {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Product",
+  },
+],
+recentlyUsedProducts: [
   {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Product",
@@ -69,6 +79,35 @@ following: [
   },
 ],
 
+hiddenStores: [
+  {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Store",
+  },
+],
+
+followedStores: [
+  {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Store",
+  },
+],
+
+    bio: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    city: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    scanPrivacy: {
+      allowScanHistory: { type: Boolean, default: true },
+      allowPersonalizedRecommendations: { type: Boolean, default: true },
+      allowImageStorage: { type: Boolean, default: true },
+    },
     onboarding: {
       gender: String,
       ageRange: String,
@@ -80,6 +119,24 @@ following: [
       goals: [String],
       chronicCondition: String,
       specialConditions: [String],
+    },
+
+    // FCM tokens — one per device, multiple devices supported
+    fcmTokens: {
+      type: [String],
+      default: [],
+    },
+
+    // Password reset via OTP
+    resetOtp: { type: String, default: null },
+    resetOtpExpires: { type: Date, default: null },
+
+    // Google OAuth
+    googleId: { type: String, default: null, sparse: true },
+    profileProvider: {
+      type: String,
+      enum: ["email", "google"],
+      default: "email",
     },
   },
   { timestamps: true }

@@ -80,9 +80,25 @@ storeRated: {
     },
 
     status: {
-      type: String,
-      enum: ["pending", "confirmed", "delivered", "cancelled"],
-      default: "pending",
+  type: String,
+  enum: [
+    "pending",
+    "confirmed",
+    "processing",
+    "out_for_delivery",
+    "delivered",
+    "cancelled",
+  ],
+  default: "pending",
+},
+
+    userConfirmedDelivery: {
+      type: Boolean,
+      default: false,
+    },
+    userConfirmedDeliveryAt: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }

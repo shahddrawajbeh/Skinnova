@@ -331,22 +331,6 @@ class _QuestionPostScreenState extends State<QuestionPostScreen> {
                   }
                 },
               ),
-              const SizedBox(height: 14),
-              _buildAttachCard(
-                icon: Icons.image_outlined,
-                title: "Photo from gallery",
-                onTap: _pickImageFromGallery,
-              ),
-              const SizedBox(height: 14),
-              _buildAttachCard(
-                icon: Icons.photo_camera_outlined,
-                title: "Take photo",
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Camera later")),
-                  );
-                },
-              ),
             ],
           ),
         ),

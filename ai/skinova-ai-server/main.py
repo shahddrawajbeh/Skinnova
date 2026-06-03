@@ -10,7 +10,7 @@ app = FastAPI()
 model = YOLO("yolov8n-face.pt")
 client = InferenceHTTPClient(
     api_url="https://serverless.roboflow.com",
-    api_key="Wb8l0S6CxMNnKC6sWOls"
+    api_key="DMZSf1rgWjIXgYwc28lj"
  )
 
 @app.post("/check-image")

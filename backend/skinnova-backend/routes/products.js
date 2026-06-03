@@ -1,6 +1,7 @@
 
 const express = require("express");
 const Product = require("../models/product");
+const { getAppSettings } = require("../helpers/getAppSettings");
 
 const router = express.Router();
 
@@ -170,6 +171,10 @@ router.get("/:id", async (req, res) => {
 });
 router.post("/:id/reviews", async (req, res) => {
   try {
+    const settings = await getAppSettings();
+    if (!settings.allowReviews) {
+      return res.status(403).json({ message: "Reviews are currently disabled." });
+    }
     const {
       userId,
       userName,
@@ -237,6 +242,87 @@ router.post("/:id/reviews", async (req, res) => {
     });
   }
 });
+// ── Product analytics (real data from reviews + user profiles) ───────────────
+router.get("/:id/analytics", async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    const reviews = product.reviews;
+    const reviewCount = reviews.length;
+
+    if (reviewCount === 0) {
+      return res.status(200).json({
+        reviewCount: 0,
+        avgRating: 0,
+        repurchaseRate: null,
+        improvedSkinRate: null,
+        adverseReactionRate: null,
+        skinTypeBreakdown: [],
+        reviewerInitials: [],
+      });
+    }
+
+    // Review-based rates
+    const repurchaseYes = reviews.filter(r => r.repurchase === true).length;
+    const repurchaseAnswered = reviews.filter(r => r.repurchase !== null).length;
+    const improvedYes = reviews.filter(r => r.improvedSkin === true).length;
+    const improvedAnswered = reviews.filter(r => r.improvedSkin !== null).length;
+    const adverseYes = reviews.filter(r => r.adverseReaction === true).length;
+    const adverseAnswered = reviews.filter(r => r.adverseReaction !== null).length;
+
+    // Skin type breakdown via reviewer profiles
+    let skinTypeBreakdown = [];
+    try {
+      const User = require("../models/user");
+      const userIds = [...new Set(reviews.map(r => r.userId).filter(Boolean))];
+      const users = await User.find({ _id: { $in: userIds } })
+        .select("onboarding.skinType");
+
+      const skinTypeCounts = {};
+      let knownCount = 0;
+      for (const review of reviews) {
+        const user = users.find(u => u._id.toString() === review.userId);
+        const skinType = user?.onboarding?.skinType;
+        if (skinType) {
+          skinTypeCounts[skinType] = (skinTypeCounts[skinType] || 0) + 1;
+          knownCount++;
+        }
+      }
+
+      skinTypeBreakdown = Object.entries(skinTypeCounts)
+        .map(([type, count]) => ({
+          type,
+          count,
+          percentage: Math.round((count / (knownCount || 1)) * 100),
+        }))
+        .sort((a, b) => b.count - a.count);
+    } catch (_) { /* leave empty if user lookup fails */ }
+
+    const reviewerInitials = reviews.slice(0, 5).map(r => ({
+      initial: r.userName ? r.userName[0].toUpperCase() : "U",
+      userName: r.userName || "User",
+    }));
+
+    const avgRating = reviews.reduce((s, r) => s + r.rating, 0) / reviewCount;
+
+    res.status(200).json({
+      reviewCount,
+      avgRating: parseFloat(avgRating.toFixed(1)),
+      repurchaseRate: repurchaseAnswered > 0
+        ? Math.round((repurchaseYes / repurchaseAnswered) * 100) : null,
+      improvedSkinRate: improvedAnswered > 0
+        ? Math.round((improvedYes / improvedAnswered) * 100) : null,
+      adverseReactionRate: adverseAnswered > 0
+        ? Math.round((adverseYes / adverseAnswered) * 100) : null,
+      skinTypeBreakdown,
+      reviewerInitials,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 router.get("/concern/:concern", async (req, res) => {
   try {
     const concern = req.params.concern;

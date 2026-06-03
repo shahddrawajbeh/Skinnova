@@ -1,6 +1,9 @@
 backend/node_modules/
 backend/.env
 backend/uploads/
+# Firebase — NEVER commit these
+backend/skinnova-backend/firebase-service-account.json
+frontend/skinnova/android/app/google-services.json
 
 frontend/build/
 frontend/.dart_tool/
@@ -9,3 +12,4 @@ ai/skinnova-ai-server/venv/
 ai/venv/
 **/venv/
 **/__pycache__/
+frontend/skinnova/lib/config/api_config.dart

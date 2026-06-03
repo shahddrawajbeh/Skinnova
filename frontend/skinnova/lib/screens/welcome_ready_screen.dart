@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'home_screen.dart';
 import 'main_navigation_screen.dart';
+import '../theme/app_theme.dart';
 
 class WelcomeReadyScreen extends StatefulWidget {
   final String userId;
@@ -19,10 +19,6 @@ class WelcomeReadyScreen extends StatefulWidget {
 }
 
 class _WelcomeReadyScreenState extends State<WelcomeReadyScreen> {
-  static const Color softLight = Color(0xFFF6F1F0);
-  static const Color barelyMauve = Color(0xFFCCBDB9);
-  static const Color lavender = Color(0xFF663F44);
-
   double progress = 0.0;
   int currentStep = 0;
   Timer? _timer;
@@ -44,7 +40,6 @@ class _WelcomeReadyScreenState extends State<WelcomeReadyScreen> {
   void _startLoading() {
     const totalDuration = Duration(seconds: 5);
     const tick = Duration(milliseconds: 100);
-
     final int totalTicks = totalDuration.inMilliseconds ~/ tick.inMilliseconds;
     int tickCount = 0;
 
@@ -67,10 +62,8 @@ class _WelcomeReadyScreenState extends State<WelcomeReadyScreen> {
 
       if (tickCount >= totalTicks) {
         timer.cancel();
-
         Future.delayed(const Duration(milliseconds: 450), () {
           if (!mounted) return;
-
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -89,7 +82,11 @@ class _WelcomeReadyScreenState extends State<WelcomeReadyScreen> {
     super.dispose();
   }
 
-  Widget _buildStepItem(int index) {
+  Widget _buildStepItem(BuildContext context, int index) {
+    final cs = Theme.of(context).colorScheme;
+    final divider = Theme.of(context).dividerColor;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+
     final bool isActive = index == currentStep;
     final bool isDone = index < currentStep;
 
@@ -107,30 +104,27 @@ class _WelcomeReadyScreenState extends State<WelcomeReadyScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isDone
-                    ? lavender
+                    ? cs.primary
                     : isActive
-                        ? lavender.withOpacity(0.10)
+                        ? cs.primary.withOpacity(0.10)
                         : Colors.transparent,
                 border: Border.all(
                   color: isDone || isActive
-                      ? lavender.withOpacity(0.75)
-                      : barelyMauve.withOpacity(0.45),
+                      ? cs.primary.withOpacity(0.75)
+                      : divider,
                   width: 1.5,
                 ),
               ),
               child: isDone
-                  ? const Icon(
-                      Icons.check_rounded,
-                      size: 13,
-                      color: Colors.white,
-                    )
+                  ? const Icon(Icons.check_rounded,
+                      size: 13, color: Colors.white)
                   : isActive
                       ? Padding(
                           padding: const EdgeInsets.all(4),
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor:
-                                const AlwaysStoppedAnimation<Color>(lavender),
+                                AlwaysStoppedAnimation<Color>(cs.primary),
                           ),
                         )
                       : null,
@@ -143,10 +137,10 @@ class _WelcomeReadyScreenState extends State<WelcomeReadyScreen> {
                   fontSize: 13.4,
                   fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
                   color: isActive
-                      ? Colors.black.withOpacity(0.88)
+                      ? textColor.withOpacity(0.88)
                       : isDone
-                          ? Colors.black.withOpacity(0.78)
-                          : Colors.black.withOpacity(0.28),
+                          ? textColor.withOpacity(0.78)
+                          : textColor.withOpacity(0.28),
                 ),
               ),
             ),
@@ -158,11 +152,15 @@ class _WelcomeReadyScreenState extends State<WelcomeReadyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: softLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
+            // Hero image
             SizedBox(
               width: double.infinity,
               height: 280,
@@ -179,8 +177,8 @@ class _WelcomeReadyScreenState extends State<WelcomeReadyScreen> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.white.withOpacity(0.02),
-                          Colors.white.withOpacity(0.06),
+                          Colors.black.withOpacity(0.02),
+                          Colors.black.withOpacity(0.18),
                         ],
                       ),
                     ),
@@ -188,10 +186,12 @@ class _WelcomeReadyScreenState extends State<WelcomeReadyScreen> {
                 ],
               ),
             ),
+
+            // Content
             Expanded(
               child: Container(
                 width: double.infinity,
-                color: softLight,
+                color: Theme.of(context).scaffoldBackgroundColor,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 30, vertical: 22),
                 child: Column(
@@ -203,25 +203,30 @@ class _WelcomeReadyScreenState extends State<WelcomeReadyScreen> {
                         fontSize: 29,
                         height: 1.22,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black.withOpacity(0.86),
+                        color: cs.onSurface.withOpacity(0.90),
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                    // Progress bar
                     ClipRRect(
                       borderRadius: BorderRadius.circular(999),
                       child: LinearProgressIndicator(
                         value: progress,
                         minHeight: 9,
-                        backgroundColor: const Color(0xFFE7E2F3),
-                        valueColor:
-                            const AlwaysStoppedAnimation<Color>(lavender),
+                        backgroundColor: isDark
+                            ? AppColors.darkSoftPink
+                            : AppColors.lightSoftPink,
+                        valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
                       ),
                     ),
                     const SizedBox(height: 24),
+
+                    // Step items
                     Column(
                       children: List.generate(
                         steps.length,
-                        (index) => _buildStepItem(index),
+                        (index) => _buildStepItem(context, index),
                       ),
                     ),
                   ],

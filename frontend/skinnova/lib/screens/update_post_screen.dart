@@ -237,26 +237,6 @@ class _UpdatePostScreenState extends State<UpdatePostScreen> {
                   }
                 },
               ),
-              const SizedBox(height: 14),
-              _buildAttachCard(
-                icon: Icons.image_outlined,
-                title: "Photo from gallery",
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Gallery later")),
-                  );
-                },
-              ),
-              const SizedBox(height: 14),
-              _buildAttachCard(
-                icon: Icons.photo_camera_outlined,
-                title: "Take photo",
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Camera later")),
-                  );
-                },
-              ),
             ],
           ),
         ),

@@ -4,7 +4,9 @@ const Tesseract = require("tesseract.js");
 const Product = require("../models/Product");
 const path = require("path");
 const ScanHistory = require("../models/ScanHistory");
-
+const User = require("../models/user");
+const fs = require("fs");
+const { getAppSettings } = require("../helpers/getAppSettings");
 const router = express.Router();
 
 const upload = multer({
@@ -36,6 +38,11 @@ function scoreProduct(ocrText, product) {
 }
 router.post("/", upload.single("image"), async (req, res) => {
   try {
+    const settings = await getAppSettings();
+    if (!settings.allowProductScans) {
+      return res.status(403).json({ message: "Product scans are currently disabled." });
+    }
+
     const { userId } = req.body;
 
     if (!req.file) {
@@ -71,9 +78,18 @@ router.post("/", upload.single("image"), async (req, res) => {
       }
     }
 
-    const isMatched = bestProduct && bestScore >= 40;
+   const isMatched = bestProduct && bestScore >= 40;
 
-    if (!isMatched) {
+const user = await User.findById(userId).select("scanPrivacy");
+const scanPrivacy = user?.scanPrivacy || {};
+
+if (!isMatched) {
+  if (scanPrivacy.allowImageStorage === false && req.file?.path) {
+    fs.unlink(req.file.path, (err) => {
+      if (err) console.log("Failed to delete unmatched scan image:", err.message);
+    });
+  }
+
   return res.status(404).json({
     matched: false,
     message:
@@ -83,16 +99,24 @@ router.post("/", upload.single("image"), async (req, res) => {
   });
 }
 
-await ScanHistory.create({
-  userId,
-  imageUrl,
-  ocrText,
-  matched: true,
-  productId: bestProduct._id,
-  productName: bestProduct.name,
-  productBrand: bestProduct.brand,
-  confidence: bestScore,
-});
+if (scanPrivacy.allowScanHistory !== false) {
+  await ScanHistory.create({
+    userId,
+    imageUrl,
+    ocrText,
+    matched: true,
+    productId: bestProduct._id,
+    productName: bestProduct.name,
+    productBrand: bestProduct.brand,
+    confidence: bestScore,
+  });
+}
+
+if (scanPrivacy.allowImageStorage === false && req.file?.path) {
+  fs.unlink(req.file.path, (err) => {
+    if (err) console.log("Failed to delete scan image:", err.message);
+  });
+}
     return res.status(200).json({
       matched: true,
       product: bestProduct,

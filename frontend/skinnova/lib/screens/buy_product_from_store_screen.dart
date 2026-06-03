@@ -200,7 +200,14 @@ class _BuyProductFromStoreScreenState extends State<BuyProductFromStoreScreen> {
                     const SizedBox(height: 14),
                     _infoRow("Price", "$price $currency"),
                     const SizedBox(height: 14),
-                    _infoRow("Available", "$stockCount items"),
+                    _infoRow(
+                      "Availability",
+                      stockCount <= 0
+                          ? "Out of Stock"
+                          : stockCount <= 5
+                              ? "Limited Stock"
+                              : "Available",
+                    ),
                   ],
                 ),
               ),

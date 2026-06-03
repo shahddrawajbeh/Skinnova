@@ -34,7 +34,10 @@ const storeProductSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-
+soldCount: {
+  type: Number,
+  default: 0,
+},
     isAvailable: {
       type: Boolean,
       default: true,

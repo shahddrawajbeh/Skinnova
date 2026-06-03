@@ -1,175 +1,10 @@
-// const express = require("express");
-// const multer = require("multer");
-// const path = require("path");
-// const fs = require("fs");
 
-// const router = express.Router();
-
-// const uploadDir = "uploads/skin-scans";
-
-// if (!fs.existsSync(uploadDir)) {
-//   fs.mkdirSync(uploadDir, { recursive: true });
-// }
-
-// const storage = multer.diskStorage({
-//   destination: function (req, file, cb) {
-//     cb(null, uploadDir);
-//   },
-//   filename: function (req, file, cb) {
-//     const uniqueName =
-//       Date.now() +
-//       "-" +
-//       Math.round(Math.random() * 1e9) +
-//       path.extname(file.originalname);
-
-//     cb(null, uniqueName);
-//   },
-// });
-
-// const fileFilter = (req, file, cb) => {
-//   if (file.mimetype.startsWith("image/")) {
-//     cb(null, true);
-//   } else {
-//     cb(new Error("Only image files are allowed"), false);
-//   }
-// };
-
-// const upload = multer({
-//   storage,
-//   fileFilter,
-//   limits: {
-//     fileSize: 8 * 1024 * 1024,
-//   },
-// });
-
-// router.post(
-//   "/analyze",
-//   upload.fields([
-//     { name: "frontImage", maxCount: 1 },
-//     { name: "leftImage", maxCount: 1 },
-//     { name: "rightImage", maxCount: 1 },
-//   ]),
-//   async (req, res) => {
-//     try {
-//       const frontImage = req.files?.frontImage?.[0];
-//       const leftImage = req.files?.leftImage?.[0];
-//       const rightImage = req.files?.rightImage?.[0];
-
-//       if (!frontImage || !leftImage || !rightImage) {
-//         return res.status(400).json({
-//           message: "Please upload front, left, and right face images.",
-//         });
-//       }
-
-//       const baseUrl = `${req.protocol}://${req.get("host")}`;
-
-//       const scanImages = {
-//         front: `${baseUrl}/${frontImage.path.replace(/\\/g, "/")}`,
-//         left: `${baseUrl}/${leftImage.path.replace(/\\/g, "/")}`,
-//         right: `${baseUrl}/${rightImage.path.replace(/\\/g, "/")}`,
-//       };
-
-//       return res.status(200).json({
-//         skinScore: 72,
-//         skinType: "Combination",
-//         severity: "Moderate",
-
-//         conditions: [
-//           "Acne",
-//           "Redness",
-//           "Dark spots",
-//           "Uneven texture",
-//         ],
-
-//         expertAnalysis:
-//           "Your skin scan used front, left, and right face photos. Your skin shows signs of combination skin with an oily T-zone and normal-to-dry cheeks. Mild acne and redness are visible, especially around the cheeks and forehead. Some dark spots may be post-acne marks. A gentle routine with hydration, acne control, and daily sunscreen is recommended.",
-
-//         scanImages,
-
-//         morningRoutine: [
-//           {
-//             step: 1,
-//             name: "Gentle Cleanser",
-//             duration: "60 sec",
-//             instruction:
-//               "Use a gentle cleanser with lukewarm water. Avoid harsh scrubbing because it can irritate the skin.",
-//             category: "Cleanse",
-//           },
-//           {
-//             step: 2,
-//             name: "Niacinamide Serum",
-//             duration: "30 sec",
-//             instruction:
-//               "Apply a few drops to help control oil, reduce redness, and support the skin barrier.",
-//             category: "Treat",
-//           },
-//           {
-//             step: 3,
-//             name: "Light Moisturizer",
-//             duration: "30 sec",
-//             instruction:
-//               "Use a lightweight moisturizer to keep the skin hydrated without making it too oily.",
-//             category: "Moisturize",
-//           },
-//           {
-//             step: 4,
-//             name: "Sunscreen SPF 50",
-//             duration: "30 sec",
-//             instruction:
-//               "Apply sunscreen every morning. This helps protect the skin and prevents dark spots from becoming worse.",
-//             category: "Protect",
-//           },
-//         ],
-
-//         nightRoutine: [
-//           {
-//             step: 1,
-//             name: "Gentle Cleanser",
-//             duration: "60 sec",
-//             instruction:
-//               "Clean your face at night to remove sunscreen, oil, sweat, and dirt.",
-//             category: "Cleanse",
-//           },
-//           {
-//             step: 2,
-//             name: "Salicylic Acid",
-//             duration: "1 min",
-//             instruction:
-//               "Use 2-3 times per week to help with acne, clogged pores, and oily areas. Do not overuse it.",
-//             category: "Treat",
-//           },
-//           {
-//             step: 3,
-//             name: "Hydrating Serum",
-//             duration: "30 sec",
-//             instruction:
-//               "Apply hyaluronic acid or another hydrating serum to keep the skin comfortable and hydrated.",
-//             category: "Hydrate",
-//           },
-//           {
-//             step: 4,
-//             name: "Barrier Repair Cream",
-//             duration: "30 sec",
-//             instruction:
-//               "Use a moisturizer with calming ingredients to support and repair the skin barrier overnight.",
-//             category: "Moisturize",
-//           },
-//         ],
-//       });
-//     } catch (error) {
-//       return res.status(500).json({
-//         message: "Skin analysis failed",
-//         error: error.message,
-//       });
-//     }
-//   }
-// );
-
-// module.exports = router;
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
+const User = require('../models/user');
 const fs = require("fs");
+const { getAppSettings } = require("../helpers/getAppSettings");
 
 const router = express.Router();
 
@@ -374,6 +209,11 @@ function buildSkinovaResult(aiResult) {
 
 router.post("/analyze", upload.single("image"), async (req, res) => {
   try {
+    const settings = await getAppSettings();
+    if (!settings.allowSkinScans) {
+      return res.status(403).json({ message: "Skin scans are currently disabled." });
+    }
+
     console.log("🔥 analyze route hit");
     const image = req.file;
 
@@ -407,6 +247,136 @@ console.log("RAW AI RESULT:", aiResult);
       message: "Skin analysis failed",
       error: error.message,
     });
+  }
+});
+
+// ─── Skin scan history routes ─────────────────────────────────────────────────
+
+const SkinScan = require('../models/SkinScan');
+
+const DAILY_SCAN_LIMIT = 2;
+
+// POST / — save a new skin scan (multipart image OR JSON with imageUrl)
+router.post('/', upload.single('image'), async (req, res) => {
+  try {
+    const { userId, overallStatus, skinScore } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'userId is required.' });
+    }
+
+    // Daily limit check
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const todayCount = await SkinScan.countDocuments({
+      userId,
+      createdAt: { $gte: startOfDay },
+    });
+
+    if (todayCount >= DAILY_SCAN_LIMIT) {
+      console.log(`[skin-scan] Daily limit reached for user ${userId}`);
+      return res.status(429).json({
+        message: 'You can only do 2 skin scans per day.',
+      });
+    }
+
+    // Parse JSON fields sent as strings (multipart) or directly (JSON body)
+    let detectedConcerns = [];
+    let morningRoutine = [];
+    let eveningRoutine = [];
+
+    try {
+      if (req.body.detectedConcerns) {
+        detectedConcerns =
+          typeof req.body.detectedConcerns === 'string'
+            ? JSON.parse(req.body.detectedConcerns)
+            : req.body.detectedConcerns;
+      }
+      if (req.body.morningRoutine) {
+        morningRoutine =
+          typeof req.body.morningRoutine === 'string'
+            ? JSON.parse(req.body.morningRoutine)
+            : req.body.morningRoutine;
+      }
+      if (req.body.eveningRoutine) {
+        eveningRoutine =
+          typeof req.body.eveningRoutine === 'string'
+            ? JSON.parse(req.body.eveningRoutine)
+            : req.body.eveningRoutine;
+      }
+    } catch (parseErr) {
+      return res.status(400).json({ message: 'Invalid JSON in fields.', error: parseErr.message });
+    }
+
+    // Resolve image URL
+    let imageUrl = req.body.imageUrl || '';
+    if (req.file) {
+      imageUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+    }
+
+    if (!imageUrl) {
+      console.log('[skin-scan] Warning: scan saved without an image');
+    }
+const user = await User.findById(userId).select("scanPrivacy");
+const scanPrivacy = user?.scanPrivacy || {};
+    const scan = new SkinScan({
+      userId,
+      imageUrl: scanPrivacy.allowImageStorage === false ? '' : imageUrl,
+      detectedConcerns,
+      overallStatus: overallStatus || '',
+      skinScore: skinScore != null ? Number(skinScore) : null,
+      morningRoutine,
+      eveningRoutine,
+    });
+
+    await scan.save();
+    if (scanPrivacy.allowImageStorage === false && req.file?.path) {
+  fs.unlink(req.file.path, (err) => {
+    if (err) {
+      console.log('Failed to delete skin scan image:', err.message);
+    }
+  });
+}
+    console.log(`[skin-scan] Saved scan ${scan._id} for user ${userId}`);
+    res.status(201).json(scan);
+  } catch (err) {
+    console.error('[skin-scan] Save error:', err.message);
+    res.status(500).json({ message: 'Failed to save scan.', error: err.message });
+  }
+});
+
+// GET /history/:userId — all scans for a user, newest first
+router.get('/history/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const scans = await SkinScan.find({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(scans);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch history.', error: err.message });
+  }
+});
+
+// GET /:scanId — single scan (must come after /history/:userId)
+router.get('/:scanId', async (req, res) => {
+  try {
+    const scan = await SkinScan.findById(req.params.scanId).lean();
+    if (!scan) return res.status(404).json({ message: 'Scan not found.' });
+    res.json(scan);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch scan.', error: err.message });
+  }
+});
+
+// DELETE /:scanId — delete a scan
+router.delete('/:scanId', async (req, res) => {
+  try {
+    const scan = await SkinScan.findByIdAndDelete(req.params.scanId);
+    if (!scan) return res.status(404).json({ message: 'Scan not found.' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to delete scan.', error: err.message });
   }
 });
 

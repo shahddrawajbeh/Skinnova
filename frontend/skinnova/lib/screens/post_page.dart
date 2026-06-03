@@ -259,25 +259,16 @@ class _PostPageState extends State<PostPage> {
   Widget _buildTopBar() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-      child: Row(
-        children: [
-          const Spacer(),
-          Text(
-            "Skinova.",
-            style: GoogleFonts.poppins(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF5B2333),
-            ),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
+      child: Center(
+        child: Text(
+          "Community",
+          style: GoogleFonts.poppins(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF5B2333),
           ),
-          const Spacer(),
-          const Icon(
-            Icons.notifications_none_rounded,
-            size: 28,
-            color: Color(0xFF202124),
-          ),
-        ],
+        ),
       ),
     );
   }
