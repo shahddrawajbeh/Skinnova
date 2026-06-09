@@ -9,7 +9,9 @@ frontend/build/
 frontend/.dart_tool/
 
 ai/skinnova-ai-server/venv/
+ai/skinnova-ai-server/venv_new/
 ai/venv/
 **/venv/
+**/venv_new/
 **/__pycache__/
 frontend/skinnova/lib/config/api_config.dart
