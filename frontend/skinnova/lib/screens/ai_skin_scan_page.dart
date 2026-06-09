@@ -201,7 +201,7 @@ class AiSkinScanPage extends StatefulWidget {
 
 class _AiSkinScanPageState extends State<AiSkinScanPage>
     with TickerProviderStateMixin {
-  static const String baseUrl = "http://192.168.1.15:5000/api";
+  static const String baseUrl = "http://10.0.2.2:5000/api";
 
   final ImagePicker _picker = ImagePicker();
 

@@ -18,6 +18,7 @@ import 'follow_list_screen.dart';
 import 'product_details_screen.dart';
 import '../product_model.dart';
 import 'purchase_history_screen.dart';
+import 'my_orders_screen.dart';
 import 'my_product_reminders_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -432,6 +433,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               const SizedBox(height: 22),
                               _buildProfileInfo(),
                               const SizedBox(height: 16),
+                              _buildMyOrdersLink(),
+                              const SizedBox(height: 10),
                               _buildPurchaseHistoryLink(),
                               const SizedBox(height: 10),
                               _buildProductRemindersLink(),
@@ -559,6 +562,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           fontWeight: FontWeight.w600,
                           color: darkText)),
                   Text('Manage your product usage reminders',
+                      style: GoogleFonts.poppins(fontSize: 12, color: grey)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: grey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── My Orders link ────────────────────────────────────────────────────────
+  Widget _buildMyOrdersLink() {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MyOrdersScreen(userId: widget.userId),
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: whiteSmoke,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: line),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: wine.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.local_shipping_outlined,
+                  color: wine, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('My Orders',
+                      style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: darkText)),
+                  Text('Track your orders and delivery status',
                       style: GoogleFonts.poppins(fontSize: 12, color: grey)),
                 ],
               ),

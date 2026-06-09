@@ -145,7 +145,7 @@ class _SkinScanDetailsScreenState extends State<SkinScanDetailsScreen>
             size: 64, color: SkiNova.wine),
       );
     }
-    const baseUrl = 'http://192.168.1.15:5000';
+    const baseUrl = 'http://10.0.2.2:5000';
     final fullUrl = widget.scan.imageUrl.startsWith('http')
         ? widget.scan.imageUrl
         : '$baseUrl${widget.scan.imageUrl}';

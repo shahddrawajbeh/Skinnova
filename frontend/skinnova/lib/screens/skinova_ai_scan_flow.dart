@@ -302,7 +302,7 @@ class _ScanningPageState extends State<ScanningPage>
 
   Future<void> _sendImageToBackend() async {
     try {
-      final uri = Uri.parse('http://192.168.1.15:8000/analyze-skin');
+      final uri = Uri.parse('http://10.0.2.2:8000/analyze-skin');
       final request = http.MultipartRequest('POST', uri);
 
       request.files.add(
@@ -2062,7 +2062,7 @@ class _RoutineCategoryProductsPageState
   Future<void> fetchProducts() async {
     try {
       final uri = Uri.parse(
-        'http://192.168.1.15:5000/api/products?category=${widget.category}',
+        'http://10.0.2.2:5000/api/products?category=${widget.category}',
       );
 
       final response = await http.get(uri);

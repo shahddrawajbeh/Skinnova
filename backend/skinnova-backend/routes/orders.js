@@ -20,6 +20,8 @@ router.post("/create", async (req, res) => {
       streetAddress,
       note,
       paymentMethod,
+      paymentStatus,
+      cardLast4,
       deliveryFee,
     } = req.body;
 
@@ -110,6 +112,10 @@ router.post("/create", async (req, res) => {
       const storeDeliveryFee = deliveryFee || 0;
       const storeTotal = storeSubtotal + storeDeliveryFee;
 
+      const placedAt = new Date();
+      // Demo estimate for the graduation project — orders are expected within 3 days
+      const estimatedDeliveryTime = new Date(placedAt.getTime() + 3 * 24 * 60 * 60 * 1000);
+
       const order = new Order({
         userId,
         storeId,
@@ -124,6 +130,10 @@ router.post("/create", async (req, res) => {
         deliveryFee: storeDeliveryFee,
         total: storeTotal,
         status: "pending",
+        paymentStatus: paymentStatus || "pending",
+        cardLast4: cardLast4 || null,
+        estimatedDeliveryTime,
+        trackingHistory: [{ status: "pending", changedAt: placedAt }],
       });
 
       await order.save();
@@ -213,6 +223,28 @@ router.get("/store/:storeId", async (req, res) => {
   }
 });
 
+// GET a single order's full detail (used by Order Tracking page)
+router.get("/detail/:orderId", async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: "Invalid orderId" });
+    }
+
+    const order = await Order.findById(orderId)
+      .populate("items.productId", "name imageUrl brand")
+      .populate("storeId", "storeName")
+      .populate("userId", "fullName");
+
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    res.status(200).json({ order });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 // PUT update order status (seller action)
 router.put("/:orderId/status", async (req, res) => {
   try {
@@ -229,7 +261,10 @@ router.put("/:orderId/status", async (req, res) => {
     }
     const order = await Order.findByIdAndUpdate(
       req.params.orderId,
-      { status },
+      {
+        status,
+        $push: { trackingHistory: { status, changedAt: new Date() } },
+      },
       { new: true }
     )
       .populate("items.productId", "name imageUrl")

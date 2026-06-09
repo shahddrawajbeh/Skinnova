@@ -596,7 +596,7 @@ class _RecentScanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const baseUrl = 'http://192.168.1.15:5000';
+    const baseUrl = 'http://10.0.2.2:5000';
     final imageUrl = scan.imageUrl.isEmpty
         ? null
         : scan.imageUrl.startsWith('http')

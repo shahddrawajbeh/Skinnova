@@ -172,7 +172,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://192.168.1.15:5000/api/products"),
+        Uri.parse("http://10.0.2.2:5000/api/products"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(body),
       );

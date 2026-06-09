@@ -61,8 +61,19 @@ storeRated: {
 
     paymentMethod: {
       type: String,
-      enum: ["cod", "card"],
+      enum: ["cod", "card", "palpay", "reflect", "apple_pay"],
       required: true,
+    },
+
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "demo_paid"],
+      default: "pending",
+    },
+
+    cardLast4: {
+      type: String,
+      default: null,
     },
 
     subtotal: {
@@ -100,6 +111,23 @@ storeRated: {
       type: Date,
       default: null,
     },
+
+    estimatedDeliveryTime: {
+      type: Date,
+      default: null,
+    },
+    trackingHistory: [
+      {
+        status: {
+          type: String,
+          required: true,
+        },
+        changedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

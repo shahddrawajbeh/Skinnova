@@ -434,6 +434,6 @@ class _ScanImage extends StatelessWidget {
 
   String _baseUrl() {
     // Matches ApiService.baseUrl without importing it here
-    return 'http://192.168.1.15:5000';
+    return 'http://10.0.2.2:5000';
   }
 }

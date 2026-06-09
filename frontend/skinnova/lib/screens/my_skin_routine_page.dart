@@ -1325,7 +1325,7 @@ class _MySkinRoutinePageState extends State<MySkinRoutinePage>
   }
 
   Widget _buildProductCard(ProductModel product) {
-    const apiBase = 'http://192.168.1.15:5000';
+    const apiBase = 'http://10.0.2.2:5000';
     final imageUrl = product.imageUrl.startsWith('http')
         ? product.imageUrl
         : '$apiBase${product.imageUrl}';

@@ -12,7 +12,7 @@ import '../medication_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = "http://192.168.1.15:5000";
+  static const String baseUrl = "http://10.0.2.2:5000";
   static Future<String?> uploadProfileImage({
     required String userId,
     required File imageFile,
@@ -357,22 +357,28 @@ class ApiService {
     required double subtotal,
     required double deliveryFee,
     required double total,
+    String paymentStatus = "pending",
+    String? cardLast4,
   }) async {
+    final body = <String, dynamic>{
+      "userId": userId,
+      "fullName": fullName,
+      "phoneNumber": phoneNumber,
+      "city": city,
+      "streetAddress": streetAddress,
+      "note": note,
+      "paymentMethod": paymentMethod,
+      "paymentStatus": paymentStatus,
+      "subtotal": subtotal,
+      "deliveryFee": deliveryFee,
+      "total": total,
+    };
+    if (cardLast4 != null) body["cardLast4"] = cardLast4;
+
     final response = await http.post(
       Uri.parse("$baseUrl/api/orders/create"),
       headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "userId": userId,
-        "fullName": fullName,
-        "phoneNumber": phoneNumber,
-        "city": city,
-        "streetAddress": streetAddress,
-        "note": note,
-        "paymentMethod": paymentMethod,
-        "subtotal": subtotal,
-        "deliveryFee": deliveryFee,
-        "total": total,
-      }),
+      body: jsonEncode(body),
     );
 
     return {
@@ -1802,6 +1808,34 @@ class ApiService {
       return {};
     } catch (e) {
       return {};
+    }
+  }
+
+  static Future<List<dynamic>> fetchOrders(String userId) async {
+    try {
+      final response =
+          await http.get(Uri.parse("$baseUrl/api/orders/$userId"));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data["orders"] ?? [];
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>?> fetchOrderById(String orderId) async {
+    try {
+      final response =
+          await http.get(Uri.parse("$baseUrl/api/orders/detail/$orderId"));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data["order"];
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 

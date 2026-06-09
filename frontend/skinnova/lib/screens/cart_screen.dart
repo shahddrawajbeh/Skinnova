@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../api_service.dart';
 import 'checkout_screen.dart';
-import 'rate_stores_screen.dart';
+import 'order_success_screen.dart';
 
 class CartScreen extends StatefulWidget {
   final String userId;
@@ -540,7 +540,7 @@ class _CartScreenState extends State<CartScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => RateStoresScreen(
+                      builder: (_) => OrderSuccessScreen(
                         userId: widget.userId,
                         orders: result,
                       ),
