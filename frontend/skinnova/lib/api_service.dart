@@ -3832,4 +3832,221 @@ class ApiService {
     if (streamed.statusCode == 200) return jsonDecode(body);
     throw Exception('Upload failed');
   }
+
+  // ── Admin Reports ────────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> adminReportStats(String adminId) async {
+    final r = await http.get(
+      Uri.parse("$baseUrl/api/admin/reports/stats"),
+      headers: {"x-admin-id": adminId},
+    );
+    return jsonDecode(r.body);
+  }
+
+  static Future<Map<String, dynamic>> adminReportUsers(
+    String adminId, {
+    String? from,
+    String? to,
+    String status = "",
+    String sort = "newest",
+    String search = "",
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final params = <String, String>{
+      "page": page.toString(),
+      "limit": limit.toString(),
+      if (from != null && from.isNotEmpty) "from": from,
+      if (to != null && to.isNotEmpty) "to": to,
+      if (status.isNotEmpty) "status": status,
+      if (sort.isNotEmpty) "sort": sort,
+      if (search.isNotEmpty) "search": search,
+    };
+    final r = await http.get(
+      Uri.parse("$baseUrl/api/admin/reports/users").replace(queryParameters: params),
+      headers: {"x-admin-id": adminId},
+    );
+    return jsonDecode(r.body);
+  }
+
+  static Future<Map<String, dynamic>> adminReportStores(
+    String adminId, {
+    String? from,
+    String? to,
+    String filter = "all",
+    String search = "",
+    int page = 1,
+  }) async {
+    final params = <String, String>{
+      "page": page.toString(),
+      "limit": "50",
+      "filter": filter,
+      if (from != null && from.isNotEmpty) "from": from,
+      if (to != null && to.isNotEmpty) "to": to,
+      if (search.isNotEmpty) "search": search,
+    };
+    final r = await http.get(
+      Uri.parse("$baseUrl/api/admin/reports/stores").replace(queryParameters: params),
+      headers: {"x-admin-id": adminId},
+    );
+    return jsonDecode(r.body);
+  }
+
+  static Future<Map<String, dynamic>> adminReportOrders(
+    String adminId, {
+    String? from,
+    String? to,
+    String status = "",
+    String search = "",
+    int page = 1,
+  }) async {
+    final params = <String, String>{
+      "page": page.toString(),
+      "limit": "50",
+      if (from != null && from.isNotEmpty) "from": from,
+      if (to != null && to.isNotEmpty) "to": to,
+      if (status.isNotEmpty) "status": status,
+      if (search.isNotEmpty) "search": search,
+    };
+    final r = await http.get(
+      Uri.parse("$baseUrl/api/admin/reports/orders").replace(queryParameters: params),
+      headers: {"x-admin-id": adminId},
+    );
+    return jsonDecode(r.body);
+  }
+
+  static Future<Map<String, dynamic>> adminReportProducts(
+    String adminId, {
+    String? from,
+    String? to,
+    String filter = "all",
+    String search = "",
+    int page = 1,
+  }) async {
+    final params = <String, String>{
+      "page": page.toString(),
+      "limit": "50",
+      "filter": filter,
+      if (from != null && from.isNotEmpty) "from": from,
+      if (to != null && to.isNotEmpty) "to": to,
+      if (search.isNotEmpty) "search": search,
+    };
+    final r = await http.get(
+      Uri.parse("$baseUrl/api/admin/reports/products").replace(queryParameters: params),
+      headers: {"x-admin-id": adminId},
+    );
+    return jsonDecode(r.body);
+  }
+
+  static Future<Map<String, dynamic>> adminReportAI(
+    String adminId, {
+    String? from,
+    String? to,
+  }) async {
+    final params = <String, String>{
+      if (from != null && from.isNotEmpty) "from": from,
+      if (to != null && to.isNotEmpty) "to": to,
+    };
+    final r = await http.get(
+      Uri.parse("$baseUrl/api/admin/reports/ai").replace(queryParameters: params),
+      headers: {"x-admin-id": adminId},
+    );
+    return jsonDecode(r.body);
+  }
+
+  static Future<Map<String, dynamic>> adminReportLoginActivity(
+    String adminId, {
+    String? from,
+    String? to,
+    String search = "",
+    int page = 1,
+  }) async {
+    final params = <String, String>{
+      "page": page.toString(),
+      "limit": "50",
+      if (from != null && from.isNotEmpty) "from": from,
+      if (to != null && to.isNotEmpty) "to": to,
+      if (search.isNotEmpty) "search": search,
+    };
+    final r = await http.get(
+      Uri.parse("$baseUrl/api/admin/reports/login-activity").replace(queryParameters: params),
+      headers: {"x-admin-id": adminId},
+    );
+    return jsonDecode(r.body);
+  }
+
+  static Future<Map<String, dynamic>> adminReportNotifications(
+    String adminId, {
+    String? from,
+    String? to,
+  }) async {
+    final params = <String, String>{
+      if (from != null && from.isNotEmpty) "from": from,
+      if (to != null && to.isNotEmpty) "to": to,
+    };
+    final r = await http.get(
+      Uri.parse("$baseUrl/api/admin/reports/notifications").replace(queryParameters: params),
+      headers: {"x-admin-id": adminId},
+    );
+    return jsonDecode(r.body);
+  }
+
+  static Future<Map<String, dynamic>> adminReportReviews(
+    String adminId, {
+    String? from,
+    String? to,
+    String search = "",
+  }) async {
+    final params = <String, String>{
+      if (from != null && from.isNotEmpty) "from": from,
+      if (to != null && to.isNotEmpty) "to": to,
+      if (search.isNotEmpty) "search": search,
+    };
+    final r = await http.get(
+      Uri.parse("$baseUrl/api/admin/reports/reviews").replace(queryParameters: params),
+      headers: {"x-admin-id": adminId},
+    );
+    return jsonDecode(r.body);
+  }
+
+  static Future<Map<String, dynamic>> adminReportRevenue(
+    String adminId, {
+    String? from,
+    String? to,
+  }) async {
+    final params = <String, String>{
+      if (from != null && from.isNotEmpty) "from": from,
+      if (to != null && to.isNotEmpty) "to": to,
+    };
+    final r = await http.get(
+      Uri.parse("$baseUrl/api/admin/reports/revenue").replace(queryParameters: params),
+      headers: {"x-admin-id": adminId},
+    );
+    return jsonDecode(r.body);
+  }
+
+  static Future<String> adminReportExportCsv(
+    String adminId,
+    String reportType, {
+    String? from,
+    String? to,
+    String? status,
+    String? filter,
+    String? search,
+  }) async {
+    final params = <String, String>{
+      "export": "csv",
+      if (from != null && from.isNotEmpty) "from": from,
+      if (to != null && to.isNotEmpty) "to": to,
+      if (status != null && status.isNotEmpty) "status": status,
+      if (filter != null && filter.isNotEmpty) "filter": filter,
+      if (search != null && search.isNotEmpty) "search": search,
+    };
+    final r = await http.get(
+      Uri.parse("$baseUrl/api/admin/reports/$reportType").replace(queryParameters: params),
+      headers: {"x-admin-id": adminId},
+    );
+    if (r.statusCode == 200) return r.body;
+    throw Exception("Export failed: ${r.statusCode}");
+  }
 }

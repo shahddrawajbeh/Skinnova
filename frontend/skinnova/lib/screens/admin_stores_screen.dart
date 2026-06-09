@@ -445,7 +445,7 @@ class _AdminStoresScreenState extends State<AdminStoresScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final content = Column(
       children: [
         _topBar(),
         Expanded(
@@ -457,6 +457,28 @@ class _AdminStoresScreenState extends State<AdminStoresScreen> {
                   : _buildList(),
         ),
       ],
+    );
+    if (Scaffold.maybeOf(context) != null) return content;
+    return Scaffold(
+      backgroundColor: AdminTheme.bg,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: AdminTheme.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          widget.showBadgeMode ? 'Store Badges' : 'Stores',
+          style: AdminTheme.title(15, w: FontWeight.w600),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: AdminTheme.line),
+        ),
+      ),
+      body: content,
     );
   }
 

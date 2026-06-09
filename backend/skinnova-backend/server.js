@@ -105,6 +105,7 @@ app.use("/api/admin/notifications", require("./routes/admin/adminNotifications")
 app.use("/api/admin/settings", require("./routes/admin/adminSettings"));
 app.use("/api/admin/welcome-settings", require("./routes/admin/adminWelcomeSettings"));
 app.use("/api/admin/analytics", require("./routes/admin/adminAnalytics"));
+app.use("/api/admin/reports", require("./routes/admin/adminReports"));
 app.use("/api/product-usage-reminders", require("./routes/productUsageReminderRoutes"));
 app.use("/api/ai", require("./routes/productSuitabilityRoutes"));
 

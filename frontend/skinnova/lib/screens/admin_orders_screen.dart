@@ -208,7 +208,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
+    final content = Column(children: [
       _topBar(),
       Expanded(
           child: _loading
@@ -218,6 +218,25 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                   ? _emptyState()
                   : _buildList()),
     ]);
+    if (Scaffold.maybeOf(context) != null) return content;
+    return Scaffold(
+      backgroundColor: AdminTheme.bg,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: AdminTheme.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text('Orders', style: AdminTheme.title(15, w: FontWeight.w600)),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: AdminTheme.line),
+        ),
+      ),
+      body: content,
+    );
   }
 
   Widget _topBar() => Container(

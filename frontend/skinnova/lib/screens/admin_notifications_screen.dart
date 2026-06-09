@@ -28,7 +28,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final content = Column(
       children: [
         Container(
           color: AdminTheme.card,
@@ -57,6 +57,25 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
           child: _AdminInboxTab(adminId: _adminId),
         ),
       ],
+    );
+    if (Scaffold.maybeOf(context) != null) return content;
+    return Scaffold(
+      backgroundColor: AdminTheme.bg,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: AdminTheme.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text('Notifications', style: AdminTheme.title(15, w: FontWeight.w600)),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: AdminTheme.line),
+        ),
+      ),
+      body: content,
     );
   }
 }

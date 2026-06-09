@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const { OAuth2Client } = require("google-auth-library");
 const User = require("../models/user");
+const LoginActivity = require("../models/LoginActivity");
 const multer = require("multer");
 const path = require("path");
 const GroupPost = require("../models/group_posts");
@@ -80,6 +81,19 @@ if (user.isActive === false) {
     if (!isMatch) {
       return res.status(400).json({ message: "Incorrect password" });
     }
+
+    // Track login activity (fire-and-forget)
+    try {
+      const ua = req.headers["user-agent"] || "";
+      await LoginActivity.create({
+        userId: user._id,
+        loginTime: new Date(),
+        device: req.body.device || "Mobile",
+        platform: req.body.platform || "Unknown",
+        browser: ua.slice(0, 120),
+        ipAddress: req.ip || req.connection?.remoteAddress || "",
+      });
+    } catch (_) { /* non-blocking */ }
 
     res.status(200).json({
       message: "Login successful",
