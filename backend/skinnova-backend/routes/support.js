@@ -1,7 +1,7 @@
 const express = require("express");
 const SupportTicket = require("../models/SupportTicket");
 const UserSupportMessage = require("../models/UserSupportMessage");
-const { sendPushToRole, sendPushNotification } = require("../helpers/sendPushNotification");
+const { sendNotificationToRole } = require("../services/notificationService");
 
 const router = express.Router();
 
@@ -26,8 +26,8 @@ router.post("/seller", async (req, res) => {
       category: category || "other",
     });
 
-    // Notify admins of new seller support ticket (fire without blocking)
-    sendPushToRole({
+    // Notify all admins via in-app, push, and email
+    sendNotificationToRole({
       role: "admin",
       title: "New Seller Support Ticket 🎫",
       body: `Seller ticket: ${subject}`,
@@ -80,7 +80,8 @@ router.post("/contact", async (req, res) => {
     const notifTitle = type === "bug" ? "New Bug Report 🐛" : "New Contact Message 💬";
     const notifBody = `${userName || "A user"}: ${subject.trim()}`;
 
-    sendPushToRole({
+    // Notify all admins via in-app, push, and email
+    sendNotificationToRole({
       role: "admin",
       title: notifTitle,
       body: notifBody,

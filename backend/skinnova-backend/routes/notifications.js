@@ -2,6 +2,7 @@ const express = require("express");
 const Notification = require("../models/notification");
 const User = require("../models/user");
 const { sendPushNotification, sendPushToRole } = require("../helpers/sendPushNotification");
+const { sendEmail, notificationEmailHtml } = require("../helpers/sendEmail");
 
 const router = express.Router();
 
@@ -48,6 +49,82 @@ router.get("/test-role/:role", async (req, res) => {
     res.json({ message: `Test push sent to role: ${role}`, usersCount: users.length, tokensCount });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// ── Notification settings ──────────────────────────────────────────────────
+
+// GET /api/notifications/settings/:userId
+router.get("/settings/:userId", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select("notificationSettings");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const settings = user.notificationSettings || {};
+    res.status(200).json({
+      inApp: settings.inApp !== false,
+      push: settings.push !== false,
+      email: settings.email !== false,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// PUT /api/notifications/settings/:userId
+router.put("/settings/:userId", async (req, res) => {
+  try {
+    const { inApp, push, email } = req.body;
+
+    const updates = {};
+    if (inApp !== undefined) updates["notificationSettings.inApp"] = Boolean(inApp);
+    if (push !== undefined) updates["notificationSettings.push"] = Boolean(push);
+    if (email !== undefined) updates["notificationSettings.email"] = Boolean(email);
+
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { $set: updates },
+      { new: true }
+    ).select("notificationSettings");
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const s = user.notificationSettings || {};
+    res.status(200).json({
+      message: "Notification settings updated",
+      settings: {
+        inApp: s.inApp !== false,
+        push: s.push !== false,
+        email: s.email !== false,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// POST /api/notifications/test-email — development only
+router.post("/test-email", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({ message: "Not available in production" });
+  }
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "email is required" });
+
+    await sendEmail({
+      to: email,
+      subject: "Skinova Test Email ✦",
+      html: notificationEmailHtml({
+        title: "Test Notification ✅",
+        body: "This is a test email from Skinova. If you received this, your Gmail SMTP is working correctly.",
+        data: {},
+      }),
+    });
+
+    res.status(200).json({ message: `Test email sent to ${email}` });
+  } catch (error) {
+    res.status(500).json({ message: "Email send failed", error: error.message });
   }
 });
 

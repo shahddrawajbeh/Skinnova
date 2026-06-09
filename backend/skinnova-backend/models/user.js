@@ -138,6 +138,13 @@ followedStores: [
       enum: ["email", "google"],
       default: "email",
     },
+
+    // Notification channel preferences
+    notificationSettings: {
+      inApp: { type: Boolean, default: true },
+      push: { type: Boolean, default: true },
+      email: { type: Boolean, default: true },
+    },
   },
   { timestamps: true }
 );

@@ -7,7 +7,7 @@ const Order = require("../models/order");
 const StoreProduct = require("../models/storeProduct");
 const Store = require("../models/store");
 const User = require("../models/user");
-const { sendPushNotification, sendPushToRole } = require("../helpers/sendPushNotification");
+const { sendNotification, sendNotificationToRole } = require("../services/notificationService");
 
 // create order
 router.post("/create", async (req, res) => {
@@ -173,7 +173,7 @@ router.post("/create", async (req, res) => {
             storeId: storeId.toString(),
           };
           // Notify seller
-          sendPushNotification({
+          sendNotification({
             userId: storeDoc.sellerId.toString(),
             title: "New Order Received 🛍️",
             body: `New order for ${storeDoc.storeName} — ILS ${storeTotal.toFixed(0)}`,
@@ -182,7 +182,7 @@ router.post("/create", async (req, res) => {
             data: orderData,
           }).catch(() => {});
           // Notify admins
-          sendPushToRole({
+          sendNotificationToRole({
             role: "admin",
             title: "New Order 🛍️",
             body: `New order placed at "${storeDoc.storeName}" — ILS ${storeTotal.toFixed(0)}`,
@@ -283,7 +283,7 @@ router.put("/:orderId/status", async (req, res) => {
     const notifBody = status === "delivered"
       ? "Your order has been marked as delivered. Please confirm when you receive it."
       : `Your order is now ${statusLabels[status] || status}`;
-    sendPushNotification({
+    sendNotification({
       userId: order.userId._id ? order.userId._id.toString() : order.userId.toString(),
       title: notifTitle,
       body: notifBody,
@@ -372,7 +372,7 @@ router.put("/confirm-received/:orderId", async (req, res) => {
     // Notify seller (fire without blocking)
     Store.findById(order.storeId).select("sellerId storeName").then((storeDoc) => {
       if (storeDoc) {
-        sendPushNotification({
+        sendNotification({
           userId: storeDoc.sellerId.toString(),
           title: "Order Confirmed ✅",
           body: `The customer confirmed receiving the order from ${storeDoc.storeName}`,
@@ -471,7 +471,7 @@ router.post("/:orderId/rate-store", async (req, res) => {
       if (storeDoc) {
         const storeIdStr = order.storeId.toString();
         // Notify seller
-        sendPushNotification({
+        sendNotification({
           userId: storeDoc.sellerId.toString(),
           title: "New Review Received ⭐",
           body: `${resolvedName} left a ${rating}-star review for ${storeDoc.storeName}`,
@@ -480,7 +480,7 @@ router.post("/:orderId/rate-store", async (req, res) => {
           data: { type: "review_submitted", storeId: storeIdStr },
         }).catch(() => {});
         // Notify admins (review needs approval)
-        sendPushToRole({
+        sendNotificationToRole({
           role: "admin",
           title: "New Pending Review ⭐",
           body: `${resolvedName} reviewed "${storeDoc.storeName}" (${rating}★) — needs approval`,

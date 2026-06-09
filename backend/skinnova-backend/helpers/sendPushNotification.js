@@ -1,7 +1,7 @@
 const User = require("../models/user");
 const Notification = require("../models/notification");
 const { getMessaging } = require("../services/firebase");
-
+const { sendEmail, notificationEmailHtml } = require("./sendEmail");
 /**
  * Send a push notification + save in-app notification.
  *
@@ -110,19 +110,50 @@ async function sendPushNotification({
  */
 async function sendPushToRole({ role, title, body, data = {}, type }) {
   try {
-    const users = await User.find({ role }).select("_id");
+    //const users = await User.find({ role }).select("_id");
+    const users = await User.find({ role }).select("_id email notificationSettings");
     const resolvedType = type || data.type || "general";
     console.log(`FCM sendPushToRole role=${role} userCount=${users.length} type=${resolvedType}`);
-    const promises = users.map((u) =>
-      sendPushNotification({
-        userId: u._id.toString(),
-        title,
-        body,
-        data,
-        type: resolvedType,
-        saveInApp: true,
-      })
-    );
+    const promises = users.map(async (u) => {
+  await sendPushNotification({
+    userId: u._id.toString(),
+    title,
+    body,
+    data,
+    type: resolvedType,
+    saveInApp: true,
+  });
+
+  if (!u.email) {
+    console.log(`[EMAIL] skipped role=${role} userId=${u._id}: no email`);
+    return;
+  }
+
+  if (u.notificationSettings?.email === false) {
+    console.log(`[EMAIL] skipped role=${role} userId=${u._id}: email disabled`);
+    return;
+  }
+
+  try {
+    console.log(`[EMAIL] preparing role email role=${role} to=${u.email} type=${resolvedType}`);
+
+    const html = notificationEmailHtml({
+      title,
+      body,
+      data: { ...data, type: resolvedType },
+    });
+
+    await sendEmail({
+      to: u.email,
+      subject: title,
+      html,
+    });
+
+    console.log(`[EMAIL] sent role email to=${u.email}`);
+  } catch (err) {
+    console.error(`[EMAIL] failed role email to=${u.email}:`, err.message);
+  }
+});
     await Promise.allSettled(promises);
   } catch (err) {
     console.error("sendPushToRole error:", err.message);

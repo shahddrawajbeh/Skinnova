@@ -4113,11 +4113,6 @@ class _DeliverySheetState extends State<_DeliverySheet>
           ),
           child: Column(
             children: [
-              _trackingRow(
-                Icons.sms_outlined,
-                "SMS Updates",
-                "You'll receive a text when your order is shipped and out for delivery.",
-              ),
               const SizedBox(height: 14),
               _trackingRow(
                 Icons.notifications_outlined,

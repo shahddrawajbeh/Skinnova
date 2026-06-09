@@ -687,8 +687,7 @@ class _MySkinRoutinePageState extends State<MySkinRoutinePage>
         // Overall badge
         Row(children: [
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
               color: safetyColor.withOpacity(0.1),
               borderRadius: SkiNova.radiusCircle,
@@ -708,15 +707,12 @@ class _MySkinRoutinePageState extends State<MySkinRoutinePage>
         if (conflicts.isNotEmpty) ...[
           const SizedBox(height: 14),
           Text('Detected Conflicts',
-              style: SkiNova.body()
-                  .copyWith(fontWeight: FontWeight.w600)),
+              style: SkiNova.body().copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           ...conflicts.map((c) {
             final map = c as Map;
-            final items =
-                (map['items'] as List?)?.cast<String>() ?? [];
-            final severity =
-                (map['severity'] ?? 'low').toString();
+            final items = (map['items'] as List?)?.cast<String>() ?? [];
+            final severity = (map['severity'] ?? 'low').toString();
             final reason = (map['reason'] ?? '').toString();
             final rec = (map['recommendation'] ?? '').toString();
             Color sevColor = severity == 'high'
@@ -730,8 +726,7 @@ class _MySkinRoutinePageState extends State<MySkinRoutinePage>
               decoration: BoxDecoration(
                 color: sevColor.withOpacity(0.06),
                 borderRadius: SkiNova.radiusMedium,
-                border: Border.all(
-                    color: sevColor.withOpacity(0.2)),
+                border: Border.all(color: sevColor.withOpacity(0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -741,8 +736,8 @@ class _MySkinRoutinePageState extends State<MySkinRoutinePage>
                       Expanded(
                         child: Text(
                           items.join(' + '),
-                          style: SkiNova.body().copyWith(
-                              fontWeight: FontWeight.w600),
+                          style: SkiNova.body()
+                              .copyWith(fontWeight: FontWeight.w600),
                         ),
                       ),
                       Container(
@@ -772,10 +767,8 @@ class _MySkinRoutinePageState extends State<MySkinRoutinePage>
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(rec,
-                              style: SkiNova.caption(
-                                      color: SkiNova.wine)
-                                  .copyWith(
-                                      fontWeight: FontWeight.w500)),
+                              style: SkiNova.caption(color: SkiNova.wine)
+                                  .copyWith(fontWeight: FontWeight.w500)),
                         ),
                       ],
                     ),
@@ -790,8 +783,7 @@ class _MySkinRoutinePageState extends State<MySkinRoutinePage>
         if (suggestions.isNotEmpty) ...[
           const SizedBox(height: 10),
           Text('Tips',
-              style: SkiNova.body()
-                  .copyWith(fontWeight: FontWeight.w600)),
+              style: SkiNova.body().copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           ...suggestions.map((s) => Padding(
                 padding: const EdgeInsets.only(bottom: 5),
@@ -803,10 +795,8 @@ class _MySkinRoutinePageState extends State<MySkinRoutinePage>
                         height: 5,
                         margin: const EdgeInsets.only(top: 6, right: 8),
                         decoration: BoxDecoration(
-                            color: SkiNova.statusGood,
-                            shape: BoxShape.circle)),
-                    Expanded(
-                        child: Text(s, style: SkiNova.caption())),
+                            color: SkiNova.statusGood, shape: BoxShape.circle)),
+                    Expanded(child: Text(s, style: SkiNova.caption())),
                   ],
                 ),
               )),

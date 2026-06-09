@@ -46,6 +46,7 @@ const notificationSchema = new mongoose.Schema(
         "routine_step_reminder",
         "skincare_tip",
         "product_usage_reminder",
+        "order_confirmed_received",
       ],
       default: "general",
     },

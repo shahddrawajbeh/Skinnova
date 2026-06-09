@@ -12,6 +12,7 @@ import 'scan_privacy_screen.dart';
 import 'contact_form_screen.dart';
 import 'app_info_screen.dart';
 import 'store_request_screen.dart';
+import 'notification_settings_screen.dart';
 import '../services/notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -341,7 +342,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: l?.notifications ?? 'Notifications',
                 subtitle: l?.notificationsSubtitle ??
                     'Manage your notification preferences',
-                badge: 'Soon',
+                onTap: () => Navigator.push(
+                  ctx,
+                  MaterialPageRoute(
+                    builder: (_) => NotificationSettingsScreen(
+                        userId: widget.userId),
+                  ),
+                ),
               ),
               _divider(),
               _tile(

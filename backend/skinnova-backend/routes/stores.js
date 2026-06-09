@@ -6,7 +6,7 @@ const StoreProduct = require("../models/storeProduct");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const { sendPushToRole, sendPushNotification } = require("../helpers/sendPushNotification");
+const { sendNotification, sendNotificationToRole } = require("../services/notificationService");
 
 const router = express.Router();
 const storeUploadDir = path.join(__dirname, "../uploads/stores");
@@ -395,10 +395,10 @@ router.put("/:storeId/follow/:userId", async (req, res) => {
       });
       await Store.findByIdAndUpdate(storeId, { $inc: { followersCount: 1 } });
 
-      // Notify store owner of new follower (fire without blocking)
+      // Notify store owner via in-app, push, and email
       Store.findById(storeId).select("storeName sellerId").then((storeDoc) => {
         if (storeDoc && storeDoc.sellerId) {
-          sendPushNotification({
+          sendNotification({
             userId: storeDoc.sellerId.toString(),
             title: "New Store Follower 🏪",
             body: `Someone started following "${storeDoc.storeName}"`,
@@ -676,11 +676,12 @@ router.post("/request", async (req, res) => {
 
     await store.save();
 
-    // Notify admins of new store request (fire without blocking)
-    sendPushToRole({
+    // Notify all admins via in-app, push, and email
+    sendNotificationToRole({
       role: "admin",
       title: "New Store Request 🏪",
       body: `"${storeName.trim()}" has submitted a store request for review.`,
+      type: "new_store_request",
       data: { type: "new_store_request", storeId: store._id.toString() },
     }).catch(() => {});
 

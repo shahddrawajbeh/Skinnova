@@ -7,7 +7,7 @@ const adminMiddleware = require("../../middleware/adminMiddleware");
 const Store = require("../../models/store");
 const User = require("../../models/user");
 const Notification = require("../../models/notification");
-const { sendPushNotification } = require("../../helpers/sendPushNotification");
+const { sendNotification } = require("../../services/notificationService");
 
 // Image upload setup
 const storeUploadDir = path.join(__dirname, "../../uploads/stores");
@@ -151,8 +151,8 @@ router.patch("/:id/approve", adminMiddleware, async (req, res) => {
     // Promote user to seller role
     await User.findByIdAndUpdate(store.sellerId._id, { role: "seller" });
 
-    // Send in-app + push notification to store owner
-    await sendPushNotification({
+    // Notify store owner via in-app, push, and email
+    await sendNotification({
       userId: store.sellerId._id.toString(),
       title: "Store Request Approved 🎉",
       body: `Congratulations! Your store "${store.storeName}" has been approved. You can now start selling.`,
@@ -189,8 +189,8 @@ router.patch("/:id/reject", adminMiddleware, async (req, res) => {
     // Ensure user stays as "user" role (don't promote)
     await User.findByIdAndUpdate(store.sellerId._id, { role: "user" });
 
-    // Send in-app + push notification to store owner
-    await sendPushNotification({
+    // Notify store owner via in-app, push, and email
+    await sendNotification({
       userId: store.sellerId._id.toString(),
       title: "Store Request Rejected",
       body: `Your store "${store.storeName}" was not approved. Reason: ${rejectionReason || "Did not meet requirements."}`,

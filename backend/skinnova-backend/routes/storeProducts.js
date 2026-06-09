@@ -4,17 +4,17 @@ const GroupPost = require("../models/group_posts");
 const User = require("../models/user");
 const Store = require("../models/store");
 const Product = require("../models/product");
-const { sendPushNotification } = require("../helpers/sendPushNotification");
+const { sendNotification } = require("../services/notificationService");
 const router = express.Router();
 
-// Helper: send in-app + FCM push to all followers of a store
+// Helper: send in-app + push + email to all followers of a store
 async function notifyStoreFollowers({ storeId, storeName, title, body, type, productId }) {
   try {
     const followers = await User.find({ followedStores: storeId }).select("_id");
     if (!followers.length) return;
     console.log(`notifyStoreFollowers [${type}] storeId=${storeId} followers=${followers.length}`);
     const promises = followers.map((u) =>
-      sendPushNotification({
+      sendNotification({
         userId: u._id.toString(),
         title,
         body,

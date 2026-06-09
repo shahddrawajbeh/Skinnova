@@ -54,7 +54,7 @@ Dependencies: `fastapi`, `uvicorn`, `opencv-python`, `numpy`, `ultralytics`, `in
 ### Flutter Frontend
 
 - **Entry point**: `lib/main.dart` → `SplashScreen` → `MainNavigationScreen`
-- **All API calls** go through the single `ApiService` class in `lib/api_service.dart`. The base URL is hardcoded as `http://192.168.1.15:5000` — update this IP when the backend host changes.
+- **All API calls** go through the single `ApiService` class in `lib/api_service.dart`. The base URL is hardcoded as `http://192.168.1.9:5000` — update this IP when the backend host changes.
 - **Screens** live flat in `lib/screens/`. There is also `lib/features/skin_ai/` with a sub-feature structure (models, screens, services, widgets).
 - **State** is not managed by a dedicated package (no Provider/Riverpod/Bloc); screens call `ApiService` directly and use `setState`.
 - User session is persisted via `shared_preferences` (key: `"userId"`, `"userRole"`).

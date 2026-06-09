@@ -5,7 +5,7 @@ const path = require("path");
 const fs = require("fs");
 const adminMiddleware = require("../../middleware/adminMiddleware");
 const Ad = require("../../models/ad");
-const { sendPushNotification } = require("../../helpers/sendPushNotification");
+const { sendNotification } = require("../../services/notificationService");
 
 // Image upload setup
 const adUploadDir = path.join(__dirname, "../../uploads/ads");
@@ -103,9 +103,9 @@ router.patch("/:id/approve", adminMiddleware, async (req, res) => {
     );
     if (!ad) return res.status(404).json({ message: "Ad not found" });
 
-    // Notify seller that their ad was approved
+    // Notify seller via in-app, push, and email
     if (ad.sellerId) {
-      sendPushNotification({
+      sendNotification({
         userId: ad.sellerId.toString(),
         title: "Ad Approved 🎉",
         body: `Your ad "${ad.title || "banner"}" has been approved and is now live.`,
@@ -131,9 +131,9 @@ router.patch("/:id/reject", adminMiddleware, async (req, res) => {
     );
     if (!ad) return res.status(404).json({ message: "Ad not found" });
 
-    // Notify seller that their ad was rejected
+    // Notify seller via in-app, push, and email
     if (ad.sellerId) {
-      sendPushNotification({
+      sendNotification({
         userId: ad.sellerId.toString(),
         title: "Ad Rejected",
         body: `Your ad "${ad.title || "banner"}" was not approved. Reason: ${adminNote || "Did not meet requirements."}`,

@@ -5,7 +5,7 @@ const Product = require("../models/product");
 const multer = require("multer");
 const { getAppSettings } = require("../helpers/getAppSettings");
 const path = require("path");
-const { sendPushNotification } = require("../helpers/sendPushNotification");
+const { sendNotification } = require("../services/notificationService");
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
@@ -294,9 +294,9 @@ router.put("/:id/like", async (req, res) => {
 
     await post.save();
 
-    // Notify post owner when liked (not on unlike, not self-like)
+    // Notify post owner via in-app, push, and email
     if (!alreadyLiked && post.userId && post.userId.toString() !== userId) {
-      sendPushNotification({
+      sendNotification({
         userId: post.userId.toString(),
         title: "Someone liked your post ❤️",
         body: "Your post received a new like",
@@ -352,9 +352,9 @@ const {
     post.comments.push(newComment);
     await post.save();
 
-    // Notify post owner of new comment (skip if commenter is the post owner)
+    // Notify post owner via in-app, push, and email
     if (post.userId && post.userId.toString() !== userId) {
-      sendPushNotification({
+      sendNotification({
         userId: post.userId.toString(),
         title: "New comment on your post 💬",
         body: `${userName || "Someone"}: ${comment.trim().substring(0, 60)}`,

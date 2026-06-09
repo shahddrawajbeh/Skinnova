@@ -2,7 +2,7 @@ const express = require("express");
 const StoreReport = require("../models/storeReport");
 const Store = require("../models/store");
 const User = require("../models/user");
-const { sendPushToRole } = require("../helpers/sendPushNotification");
+const { sendNotificationToRole } = require("../services/notificationService");
 
 const router = express.Router();
 
@@ -42,8 +42,8 @@ router.post("/", async (req, res) => {
       details: details || "",
     });
 
-    // Notify all admins (fire without blocking)
-    sendPushToRole({
+    // Notify all admins via in-app, push, and email
+    sendNotificationToRole({
       role: "admin",
       title: "New Store Report 🚩",
       body: `${resolvedName} reported "${resolvedStoreName || "a store"}": ${reason}`,

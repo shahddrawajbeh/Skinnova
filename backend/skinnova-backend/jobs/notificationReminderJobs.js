@@ -5,7 +5,7 @@ const UserRoutine = require("../models/UserRoutine");
 const RoutineProgress = require("../models/RoutineProgress");
 const Notification = require("../models/notification");
 const ProductUsageReminder = require("../models/productUsageReminder");
-const { sendPushNotification } = require("../helpers/sendPushNotification");
+const { sendNotification } = require("../services/notificationService");
 
 const TZ = process.env.CRON_TIMEZONE || "Asia/Jerusalem";
 
@@ -81,7 +81,7 @@ async function sendSkinScanReminders() {
             skipped++;
             return;
           }
-          await sendPushNotification({
+          await sendNotification({
             userId,
             title: "Time for your skin check ✨",
             body: "You haven't scanned your skin today. Take a quick scan to keep your progress updated.",
@@ -151,7 +151,7 @@ async function sendRoutineReminders() {
             skipped++;
             return; // all steps done today
           }
-          await sendPushNotification({
+          await sendNotification({
             userId,
             title: "Don't forget your routine 💆‍♀️",
             body: "You still have skincare steps waiting for today. Mark them as done when you finish.",
@@ -192,7 +192,7 @@ async function sendSkincareTips() {
             skipped++;
             return;
           }
-          await sendPushNotification({
+          await sendNotification({
             userId,
             title: "Skinova Tip 🌿",
             body: tip,
@@ -249,7 +249,7 @@ async function sendProductUsageReminders() {
         ? `Time to use ${reminder.productNameSnapshot}. ${shortDirs}`
         : `Time to use ${reminder.productNameSnapshot}.`;
 
-      await sendPushNotification({
+      await sendNotification({
         userId: reminder.userId.toString(),
         title: "Time to use your product 💆‍♀️",
         body,

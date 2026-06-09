@@ -7,7 +7,7 @@ const multer = require("multer");
 const path = require("path");
 const GroupPost = require("../models/group_posts");
 const { getAppSettings } = require("../helpers/getAppSettings");
-const { sendPushNotification } = require("../helpers/sendPushNotification");
+const { sendNotification } = require("../services/notificationService");
 const { sendEmail, otpEmailHtml } = require("../helpers/sendEmail");
 
 const router = express.Router();
@@ -559,10 +559,10 @@ router.post("/:id/follow", async (req, res) => {
       $addToSet: { following: targetUserId },
     });
 
-    // Notify followed user (fire without blocking)
+    // Notify followed user via in-app, push, and email
     User.findById(currentUserId).select("fullName").then((follower) => {
       if (follower) {
-        sendPushNotification({
+        sendNotification({
           userId: targetUserId,
           title: "New Follower 👤",
           body: `${follower.fullName} started following you`,

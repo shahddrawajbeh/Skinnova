@@ -4,7 +4,7 @@ const Ad = require("../models/ad");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const { sendPushToRole, sendPushNotification } = require("../helpers/sendPushNotification");
+const { sendNotification, sendNotificationToRole } = require("../services/notificationService");
 
 const adUploadDir = path.join(__dirname, "../uploads/ads");
 if (!fs.existsSync(adUploadDir)) fs.mkdirSync(adUploadDir, { recursive: true });
@@ -56,11 +56,12 @@ const ad = new Ad({
 });
     await ad.save();
 
-    // Notify all admins of new pending ad (fire without blocking response)
-    sendPushToRole({
+    // Notify all admins via in-app, push, and email
+    sendNotificationToRole({
       role: "admin",
       title: "New Ad Request 📢",
       body: `A new ad/banner has been submitted for review.`,
+      type: "new_ad_request",
       data: { type: "new_ad_request", adId: ad._id.toString() },
     }).catch(() => {});
 
@@ -168,9 +169,9 @@ router.put("/:id/reject", async (req, res) => {
       return res.status(404).json({ message: "Ad not found" });
     }
 
-    // Notify seller
+    // Notify seller via in-app, push, and email
     if (ad.sellerId) {
-      sendPushNotification({
+      sendNotification({
         userId: ad.sellerId.toString(),
         title: "Ad Rejected",
         body: `Your ad "${ad.title || "banner"}" was not approved. Reason: ${adminNote || "Did not meet requirements."}`,

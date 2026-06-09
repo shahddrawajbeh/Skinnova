@@ -2264,6 +2264,45 @@ class ApiService {
     }
   }
 
+  /// GET /api/notifications/settings/:userId
+  static Future<Map<String, bool>?> getNotificationSettings(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse("$baseUrl/api/notifications/settings/$userId"),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return {
+          'inApp': data['inApp'] as bool? ?? true,
+          'push': data['push'] as bool? ?? true,
+          'email': data['email'] as bool? ?? true,
+        };
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// PUT /api/notifications/settings/:userId
+  static Future<bool> updateNotificationSettings(
+    String userId, {
+    required bool inApp,
+    required bool push,
+    required bool email,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse("$baseUrl/api/notifications/settings/$userId"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({'inApp': inApp, 'push': push, 'email': email}),
+      );
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<bool> sendSellerSupportMessage(
       Map<String, dynamic> data) async {
     try {

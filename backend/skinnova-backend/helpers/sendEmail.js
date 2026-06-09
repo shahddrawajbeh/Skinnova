@@ -102,4 +102,74 @@ function otpEmailHtml(otp) {
 </html>`;
 }
 
-module.exports = { sendEmail, otpEmailHtml };
+/**
+ * Professional notification email template used by notificationService.
+ *
+ * @param {Object} opts
+ * @param {string} opts.title   - Notification title
+ * @param {string} opts.body    - Notification body
+ * @param {Object} [opts.data]  - Optional data payload (orderId, status, etc.)
+ */
+function notificationEmailHtml({ title, body, data = {} }) {
+  let extraHtml = "";
+  if (data.orderId) {
+    const shortId = String(data.orderId).slice(-8).toUpperCase();
+    const statusLabel = data.status
+      ? data.status.replace(/_/g, " ")
+      : null;
+    extraHtml = `
+      <div style="background:#FDF2F4;border:1.5px solid #F0D0D6;border-radius:12px;
+                  padding:14px 18px;margin-bottom:20px;">
+        <p style="margin:0;font-size:13px;color:#5B2333;font-weight:600;">
+          Order Reference: #${shortId}
+          ${statusLabel ? `&nbsp;&middot;&nbsp;Status: ${statusLabel}` : ""}
+        </p>
+      </div>`;
+  }
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#F7F4F3;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F7F4F3;padding:40px 0;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0"
+        style="background:#ffffff;border-radius:20px;overflow:hidden;
+               box-shadow:0 4px 24px rgba(91,35,51,0.10);">
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#5B2333,#7A3346);
+                     padding:28px 40px;text-align:center;">
+            <p style="margin:0;font-size:26px;color:#fff;font-weight:700;letter-spacing:1px;">
+              &#10022; Skinova
+            </p>
+            <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.80);">
+              Your personal skincare companion
+            </p>
+          </td>
+        </tr>
+        <!-- Body -->
+        <tr>
+          <td style="padding:32px 40px 28px;">
+            <h2 style="margin:0 0 10px;font-size:20px;color:#202124;font-weight:700;">
+              ${title}
+            </h2>
+            <p style="margin:0 0 20px;font-size:14.5px;color:#6B6B6B;line-height:1.65;">
+              ${body}
+            </p>
+            ${extraHtml}
+            <hr style="border:none;border-top:1px solid #EEECEC;margin:0 0 18px;">
+            <p style="margin:0;font-size:12px;color:#AAAAAA;text-align:center;line-height:1.7;">
+              This is an automated message from Skinova.<br>
+              &copy; ${new Date().getFullYear()} Skinova. All rights reserved.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+module.exports = { sendEmail, otpEmailHtml, notificationEmailHtml };
