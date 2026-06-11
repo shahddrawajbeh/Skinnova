@@ -26,8 +26,12 @@ const groupPostSchema = new mongoose.Schema(
     userName: { type: String, required: true },
     userAvatar: { type: String, default: "" },
 
-    tag: { type: String, default: "Sensitive" }, 
-    postType: { type: String, enum: ["review", "question", "update"], default: "review" },
+    tag: { type: String, default: "Sensitive" },
+    postType: {
+      type: String,
+      enum: ["review", "question", "update", "tip", "routine", "before_after"],
+      default: "review",
+    },
 
     content: { type: String, default: "" },
     images: { type: [String], default: [] },
@@ -59,6 +63,20 @@ likes: {
   type: [String], // نخزن userId
   default: [],
 },
+reactions: {
+  type: [
+    {
+      userId: { type: String, required: true },
+      type: {
+        type: String,
+        enum: ["helpful", "useful", "loveIt"],
+        required: true,
+      },
+    },
+  ],
+  default: [],
+},
+isPinned: { type: Boolean, default: false },
 comments: {
   type: [commentSchema],
   default: [],

@@ -10,6 +10,9 @@ import 'question_post_screen.dart';
 import 'public_profile_screen.dart';
 import '../medication_model.dart';
 import 'medication_details_screen.dart';
+import 'community/community_theme.dart';
+import 'community/post_card.dart';
+import 'community/join_button.dart';
 
 class GroupDetailsScreen extends StatefulWidget {
   final String groupSlug;
@@ -42,6 +45,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   List<MedicationModel> medications = [];
   bool medicationsLoading = true;
   Set<String> followedUserIds = {};
+  List<GroupMemberModel> members = [];
+  bool membersLoading = true;
 
   @override
   void initState() {
@@ -100,6 +105,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         isLoading = false;
         peopleLoading = false;
       });
+
+      _loadMembers();
     } catch (e) {
       debugPrint("GROUP DETAILS ERROR: $e");
       if (!mounted) return;
@@ -107,6 +114,28 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         isLoading = false;
         peopleLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadMembers() async {
+    try {
+      final loadedMembers = await ApiService.fetchGroupMembers(
+        widget.groupSlug,
+        widget.userId,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        members = loadedMembers;
+        membersLoading = false;
+        for (final m in loadedMembers) {
+          if (m.isFollowedByMe) followedUserIds.add(m.id);
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => membersLoading = false);
     }
   }
 
@@ -336,51 +365,11 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                         Positioned(
                           top: 16,
                           right: 16,
-                          child: GestureDetector(
-                            onTap: isJoined ? _leaveGroup : _joinGroup,
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 18, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: isJoined
-                                    ? const Color(0xFF202124)
-                                    : const Color(0xFF5B2333),
-                                borderRadius: BorderRadius.circular(18),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.10),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    isJoined
-                                        ? Icons.logout_rounded
-                                        : Icons.group_add_rounded,
-                                    color: Colors.white,
-                                    size: 15,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    isJoining
-                                        ? (isJoined
-                                            ? "Leaving..."
-                                            : "Joining...")
-                                        : (isJoined ? "Leave" : "Join"),
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                          child: JoinButton(
+                            isJoined: isJoined,
+                            isLoading: isJoining,
+                            onJoin: _joinGroup,
+                            onLeave: _leaveGroup,
                           ),
                         ),
                         Positioned(
@@ -466,52 +455,31 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Widget _buildMedicationGroupTabs() {
-    final tabs = ["Products", "People", "Discussion", "Medications"];
+    final tabs = [
+      "Products",
+      "Members",
+      "Discussion",
+      "Medications",
+      "Media",
+      "Pinned",
+    ];
 
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: List.generate(tabs.length, (index) {
-            final selected = selectedGroupTab == index;
-
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  selectedGroupTab = index;
-                });
-              },
-              child: Column(
-                children: [
-                  Text(
-                    tabs[index],
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: selected ? const Color(0xFF202124) : Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: 38,
-                    height: 2,
-                    color:
-                        selected ? const Color(0xFF202124) : Colors.transparent,
-                  ),
-                ],
-              ),
-            );
-          }),
-        ),
+        _buildTabBar(tabs),
         const SizedBox(height: 18),
         if (selectedGroupTab == 0)
           _buildProductsList()
         else if (selectedGroupTab == 1)
-          _buildPeopleList()
+          _buildMembersTab()
         else if (selectedGroupTab == 2)
           _buildDiscussionPlaceholder()
+        else if (selectedGroupTab == 3)
+          _buildMedicationsList()
+        else if (selectedGroupTab == 4)
+          _buildMediaTab()
         else
-          _buildMedicationsList(),
+          _buildPinnedTab(),
       ],
     );
   }
@@ -600,52 +568,20 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Widget _buildProductsAndDiscussionTabs() {
+    final tabs = ["Products", "Discussion", "Media", "Pinned"];
+
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  selectedGroupTab = 0;
-                });
-              },
-              child: Text(
-                "Products",
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
-                  color: selectedGroupTab == 0
-                      ? const Color(0xFF5B2333)
-                      : Colors.grey,
-                ),
-              ),
-            ),
-            const SizedBox(width: 50),
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  selectedGroupTab = 1;
-                });
-              },
-              child: Text(
-                "Discussion",
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
-                  color: selectedGroupTab == 1
-                      ? const Color(0xFF5B2333)
-                      : Colors.grey,
-                ),
-              ),
-            ),
-          ],
-        ),
+        _buildTabBar(tabs),
         const SizedBox(height: 18),
-        selectedGroupTab == 0
-            ? _buildProductsList()
-            : _buildDiscussionPlaceholder(),
+        if (selectedGroupTab == 0)
+          _buildProductsList()
+        else if (selectedGroupTab == 1)
+          _buildDiscussionPlaceholder()
+        else if (selectedGroupTab == 2)
+          _buildMediaTab()
+        else
+          _buildPinnedTab(),
       ],
     );
   }
@@ -668,128 +604,54 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Widget _buildPeopleAndDiscussionTabs() {
+    final tabs = ["Members", "Discussion", "Media", "Pinned"];
+
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  selectedGroupTab = 0;
-                });
-              },
-              child: Text(
-                "People",
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
-                  color: selectedGroupTab == 0
-                      ? const Color(0xFF5B2333)
-                      : Colors.grey,
-                ),
-              ),
-            ),
-            const SizedBox(width: 50),
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  selectedGroupTab = 1;
-                });
-              },
-              child: Text(
-                "Discussion",
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
-                  color: selectedGroupTab == 1
-                      ? const Color(0xFF5B2333)
-                      : Colors.grey,
-                ),
-              ),
-            ),
-          ],
-        ),
+        _buildTabBar(tabs),
         const SizedBox(height: 18),
-        selectedGroupTab == 0
-            ? _buildPeopleList()
-            : _buildDiscussionPlaceholder(),
-        // peopleLoading
-        //     ? const Center(child: CircularProgressIndicator())
-        //     : people.isEmpty
-        //         ? Padding(
-        //             padding: const EdgeInsets.all(20),
-        //             child: Text(
-        //               "No people found",
-        //               style: GoogleFonts.poppins(fontSize: 14),
-        //             ),
-        //           )
-        //         : ListView.separated(
-        //             shrinkWrap: true,
-        //             physics: const NeverScrollableScrollPhysics(),
-        //             padding: const EdgeInsets.all(16),
-        //             itemCount: people.length,
-        //             separatorBuilder: (_, __) => const SizedBox(height: 14),
-        //             itemBuilder: (context, index) {
-        //               final user = people[index];
-
-        //               return Container(
-        //                 padding: const EdgeInsets.all(14),
-        //                 decoration: BoxDecoration(
-        //                   color: Colors.white,
-        //                   borderRadius: BorderRadius.circular(22),
-        //                   border: Border.all(color: const Color(0xFFF0F0F0)),
-        //                 ),
-        //                 child: Row(
-        //                   children: [
-        //                     CircleAvatar(
-        //                       radius: 28,
-        //                       backgroundImage: user.profileImage.isNotEmpty
-        //                           ? NetworkImage(user.profileImage)
-        //                           : null,
-        //                       child: user.profileImage.isEmpty
-        //                           ? Text(
-        //                               user.fullName.isNotEmpty
-        //                                   ? user.fullName[0].toUpperCase()
-        //                                   : "U",
-        //                             )
-        //                           : null,
-        //                     ),
-        //                     const SizedBox(width: 14),
-        //                     Expanded(
-        //                       child: Text(
-        //                         user.fullName,
-        //                         style: GoogleFonts.poppins(
-        //                           fontSize: 15,
-        //                           fontWeight: FontWeight.w600,
-        //                         ),
-        //                       ),
-        //                     ),
-        //                     user.id == widget.userId
-        //                         ? const SizedBox() // ما يطلع زر لنفسك
-        //                         : Container(
-        //                             padding: const EdgeInsets.symmetric(
-        //                               horizontal: 18,
-        //                               vertical: 9,
-        //                             ),
-        //                             decoration: BoxDecoration(
-        //                               color: const Color(0xFF5B2333),
-        //                               borderRadius: BorderRadius.circular(12),
-        //                             ),
-        //                             child: Text(
-        //                               "Follow",
-        //                               style: GoogleFonts.poppins(
-        //                                 color: Colors.white,
-        //                                 fontWeight: FontWeight.w500,
-        //                               ),
-        //                             ),
-        //                           ),
-        //                   ],
-        //                 ),
-        //               );
-        //             },
-        //           ),
+        if (selectedGroupTab == 0)
+          _buildMembersTab()
+        else if (selectedGroupTab == 1)
+          _buildDiscussionPlaceholder()
+        else if (selectedGroupTab == 2)
+          _buildMediaTab()
+        else
+          _buildPinnedTab(),
       ],
+    );
+  }
+
+  Widget _buildTabBar(List<String> tabs) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: List.generate(tabs.length, (index) {
+        final selected = selectedGroupTab == index;
+
+        return GestureDetector(
+          onTap: () => setState(() => selectedGroupTab = index),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                tabs[index],
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: selected ? const Color(0xFF202124) : Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: 38,
+                height: 2,
+                color:
+                    selected ? const Color(0xFF202124) : Colors.transparent,
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 
@@ -928,6 +790,284 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                   );
                 },
               );
+  }
+
+  Widget _buildMembersTab() {
+    if (membersLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (members.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(20),
+        child: Text(
+          "No members yet",
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      itemCount: members.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 14),
+      itemBuilder: (context, index) {
+        final member = members[index];
+
+        return FadeSlideIn(
+          delay: Duration(milliseconds: 50 * index),
+          child: GestureDetector(
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PublicProfileScreen(
+                    viewedUserId: member.id,
+                    currentUserId: widget.userId,
+                  ),
+                ),
+              );
+
+              await loadGroupData();
+            },
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFFF0F0F0)),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundImage: member.profileImage.isNotEmpty
+                        ? NetworkImage(member.profileImage)
+                        : null,
+                    child: member.profileImage.isEmpty
+                        ? Text(
+                            member.fullName.isNotEmpty
+                                ? member.fullName[0].toUpperCase()
+                                : "U",
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                member.fullName,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            if (member.isMutual) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: CommunityColors.lightSoftPink,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  "Mutual",
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: CommunityColors.wine,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Joined ${PostCardHeader.formatPostTime(member.joinedAt)}",
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  member.id == widget.userId
+                      ? const SizedBox()
+                      : GestureDetector(
+                          onTap: () async {
+                            final alreadyFollowing =
+                                followedUserIds.contains(member.id);
+
+                            final success = alreadyFollowing
+                                ? await ApiService.unfollowUser(
+                                    targetUserId: member.id,
+                                    currentUserId: widget.userId,
+                                  )
+                                : await ApiService.followUser(
+                                    targetUserId: member.id,
+                                    currentUserId: widget.userId,
+                                  );
+
+                            if (success) {
+                              setState(() {
+                                if (alreadyFollowing) {
+                                  followedUserIds.remove(member.id);
+                                } else {
+                                  followedUserIds.add(member.id);
+                                }
+                              });
+
+                              _showPrettySnackBar(
+                                message: alreadyFollowing
+                                    ? "Unfollowed successfully"
+                                    : "Followed successfully",
+                                icon: Icons.check_rounded,
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 9,
+                            ),
+                            decoration: BoxDecoration(
+                              color: followedUserIds.contains(member.id)
+                                  ? Colors.white
+                                  : CommunityColors.wine,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: followedUserIds.contains(member.id)
+                                    ? const Color(0xFFE0E0E0)
+                                    : CommunityColors.wine,
+                              ),
+                            ),
+                            child: Text(
+                              followedUserIds.contains(member.id)
+                                  ? "Following"
+                                  : "Follow",
+                              style: GoogleFonts.poppins(
+                                color: followedUserIds.contains(member.id)
+                                    ? const Color(0xFF202124)
+                                    : Colors.white,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMediaTab() {
+    if (discussionLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final images = discussionPosts.expand((p) => p.images).toList();
+
+    if (images.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(20),
+        child: Text(
+          "No media yet",
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+      );
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      itemCount: images.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemBuilder: (context, index) {
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => _MediaViewerScreen(
+                images: images,
+                initialIndex: index,
+              ),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(
+              images[index],
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                color: const Color(0xFFF1F1F1),
+                child: const Icon(
+                  Icons.image_not_supported_outlined,
+                  color: Color(0xFFB0B0B0),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPinnedTab() {
+    if (discussionLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final pinnedPosts = discussionPosts.where((p) => p.isPinned).toList();
+
+    if (pinnedPosts.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          "No pinned posts yet",
+          style: GoogleFonts.poppins(fontSize: 15),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 20),
+      itemCount: pinnedPosts.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        return PostCard(
+          post: pinnedPosts[index],
+          currentUserId: widget.userId,
+          currentUserName: widget.userName,
+          onDelete: loadGroupData,
+          onRefresh: loadGroupData,
+        );
+      },
+    );
   }
 
   // Widget _buildDiscussionPlaceholder() {
@@ -1116,6 +1256,70 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _MediaViewerScreen extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _MediaViewerScreen({
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_MediaViewerScreen> createState() => _MediaViewerScreenState();
+}
+
+class _MediaViewerScreenState extends State<_MediaViewerScreen> {
+  late final PageController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _controller,
+            itemCount: widget.images.length,
+            itemBuilder: (context, index) {
+              return InteractiveViewer(
+                minScale: 1,
+                maxScale: 4,
+                child: Center(
+                  child: Image.network(
+                    widget.images[index],
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              );
+            },
+          ),
+          Positioned(
+            top: 40,
+            right: 16,
+            child: IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.close, color: Colors.white, size: 28),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

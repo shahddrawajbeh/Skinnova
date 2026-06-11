@@ -3,6 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'post_page.dart';
 import '../api_service.dart';
 import 'package:flutter/services.dart';
+import 'community/community_theme.dart';
+import 'community/post_card.dart';
+import 'community/reaction_bar.dart';
+
+enum CommentSortMode { helpful, newest }
 
 class PostDetailsScreen extends StatefulWidget {
   final GroupPostModel post;
@@ -25,36 +30,11 @@ class PostDetailsScreen extends StatefulWidget {
 class _PostDetailsScreenState extends State<PostDetailsScreen> {
   final TextEditingController commentController = TextEditingController();
 
-  bool isLiked = false;
   late GroupPostModel post;
   final FocusNode commentFocusNode = FocusNode();
   String? replyingToCommentId;
   String replyingToUserName = "";
-  Color _getPostTypeColor(String postType) {
-    switch (postType.toLowerCase()) {
-      case "question":
-        return const Color(0xFFF3D86B);
-      case "review":
-        return const Color(0xFF6BA4D9);
-      case "update":
-        return const Color(0xFF8BC48A);
-      default:
-        return const Color(0xFFB0B0B0);
-    }
-  }
-
-  Color _getPostTypeTextColor(String postType) {
-    switch (postType.toLowerCase()) {
-      case "question":
-        return const Color(0xFF5A4A00);
-      case "review":
-        return Colors.white;
-      case "update":
-        return Colors.white;
-      default:
-        return Colors.white;
-    }
-  }
+  CommentSortMode commentSortMode = CommentSortMode.helpful;
 
   @override
   void initState() {
@@ -66,62 +46,6 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
       });
     }
     _refreshPost();
-  }
-
-  void _showEditPostDialog() {
-    final TextEditingController controller =
-        TextEditingController(text: post.content);
-
-    showDialog(
-      context: context,
-      builder: (_) {
-        return AlertDialog(
-          title: const Text("Edit Post"),
-          content: TextField(
-            controller: controller,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              hintText: "Edit your question",
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              //  onPressed: () => Navigator.pop(context),
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () async {
-                final newContent = controller.text.trim();
-                if (newContent.isEmpty) return;
-
-                final success = await ApiService.editPost(
-                  postId: post.id,
-                  content: newContent,
-                );
-
-                if (!mounted) return;
-
-                Navigator.pop(context);
-
-                if (success) {
-                  await _refreshPost();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Post updated")),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Failed to update post")),
-                  );
-                }
-              },
-              child: const Text("Save"),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _showEditCommentDialog(PostCommentModel comment) {
@@ -185,15 +109,17 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
     try {
       final posts = await ApiService.fetchPosts();
 
-      final updatedPost = posts.firstWhere(
-        (p) => p.id == widget.post.id,
-        orElse: () => widget.post,
-      );
-
       if (!mounted) return;
 
+      final stillExists = posts.any((p) => p.id == widget.post.id);
+
+      if (!stillExists) {
+        Navigator.pop(context, true);
+        return;
+      }
+
       setState(() {
-        post = updatedPost;
+        post = posts.firstWhere((p) => p.id == widget.post.id);
       });
     } catch (e) {}
   }
@@ -295,50 +221,15 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
     );
   }
 
-  Future<void> _togglePostLike() async {
-    final result = await ApiService.toggleLike(
-      postId: post.id,
-      userId: widget.currentUserId,
-    );
-
-    if (result["statusCode"] == 200) {
-      setState(() {
-        post = GroupPostModel(
-          id: post.id,
-          userId: post.userId,
-          userName: post.userName,
-          userAvatar: post.userAvatar,
-          tag: post.tag,
-          postType: post.postType,
-          content: post.content,
-          images: post.images,
-          timeText: post.timeText,
-          isEdited: post.isEdited,
-          createdAt: post.createdAt,
-          rating: post.rating,
-          productName: post.productName,
-          productImage: post.productImage,
-          repurchase: post.repurchase,
-          improvedSkin: post.improvedSkin,
-          wasGift: post.wasGift,
-          adverseReaction: post.adverseReaction,
-          texture: post.texture,
-          usageWeeks: post.usageWeeks,
-          likes: List<String>.from(result["data"]["likes"] ?? []),
-          comments: post.comments,
-          groupId: post.groupId,
-          groupTitle: post.groupTitle,
-          groupSlug: post.groupSlug,
-        );
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    //final post = widget.post;
-    final sortedComments = List<PostCommentModel>.from(post.comments)
-      ..sort((a, b) => b.likes.length.compareTo(a.likes.length));
+    final sortedComments = List<PostCommentModel>.from(post.comments);
+    if (commentSortMode == CommentSortMode.newest) {
+      sortedComments.sort((a, b) =>
+          (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
+    } else {
+      sortedComments.sort((a, b) => b.likes.length.compareTo(a.likes.length));
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
@@ -372,171 +263,10 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildAvatar(
-                        userName: post.userName,
-                        userAvatar: post.userAvatar,
-                        radius: 22,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    post.userName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
-                                      color: const Color(0xFF2A2A2A),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _getPostTypeColor(post.postType),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Text(
-                                    post.postType.isNotEmpty
-                                        ? post.postType[0].toUpperCase() +
-                                            post.postType.substring(1)
-                                        : "Review",
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                      color:
-                                          _getPostTypeTextColor(post.postType),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "·",
-                                  style: GoogleFonts.poppins(
-                                    color: const Color(0xFFB0B0B0),
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.access_time_rounded,
-                                  size: 13,
-                                  color: Colors.grey.shade400,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _formatPostTime(post.createdAt),
-                                  style: GoogleFonts.poppins(
-                                    color: const Color(0xFF9A9A9A),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "·",
-                                  style: GoogleFonts.poppins(
-                                    color: const Color(0xFFB0B0B0),
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () {
-                          final isMyPost = post.userId == widget.currentUserId;
-
-                          showModalBottomSheet(
-                            context: context,
-                            builder: (_) {
-                              return SafeArea(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (isMyPost) ...[
-                                        if (post.postType.toLowerCase() ==
-                                            "question")
-                                          ListTile(
-                                            title: const Text("Edit Post"),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              _showEditPostDialog();
-                                            },
-                                          ),
-                                        ListTile(
-                                          title: const Text(
-                                            "Delete Post",
-                                            style: TextStyle(color: Colors.red),
-                                          ),
-                                          onTap: () async {
-                                            Navigator.pop(context);
-
-                                            final success =
-                                                await ApiService.deletePost(
-                                                    post.id);
-
-                                            if (!mounted) return;
-
-                                            if (success) {
-                                              Navigator.pop(context);
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                const SnackBar(
-                                                    content:
-                                                        Text("Post deleted")),
-                                              );
-                                            } else {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                      "Failed to delete post"),
-                                                ),
-                                              );
-                                            }
-                                          },
-                                        ),
-                                      ],
-                                      ListTile(
-                                        title: const Text("Cancel"),
-                                        onTap: () => Navigator.pop(context),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                        child: const Icon(
-                          Icons.more_horiz_rounded,
-                          color: Color(0xFF7C7C7C),
-                          size: 22,
-                        ),
-                      ),
-                    ],
+                  PostCardHeader(
+                    post: post,
+                    onDelete: () => _refreshPost(),
+                    currentUserId: widget.currentUserId,
                   ),
                   const SizedBox(height: 16),
                   if (post.rating > 0)
@@ -640,56 +370,113 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                         ),
                       ),
                     ),
+                  if (post.images.isNotEmpty)
+                    PostImageGallery(
+                      images: post.images,
+                      heroTagPrefix: 'post-details-${post.id}',
+                    ),
                   const SizedBox(height: 18),
-                  Builder(
-                    builder: (context) {
-                      final isLiked = post.likes.contains(widget.currentUserId);
-
-                      return Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              GestureDetector(
-                                onTap: _togglePostLike,
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      isLiked
-                                          ? Icons.favorite_rounded
-                                          : Icons.favorite_border_rounded,
-                                      color: isLiked
-                                          ? Colors.red
-                                          : const Color(0xFF8E8E8E),
-                                      size: 22,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      "${post.likes.length} ${post.likes.length == 1 ? "Like" : "Likes"}",
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        color: isLiked
-                                            ? Colors.red
-                                            : const Color(0xFF8E8E8E),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 18),
-                          Container(
-                            width: double.infinity,
-                            height: 1,
-                            color: const Color(0xFFE9E9E9),
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-                      );
+                  ReactionBar(
+                    post: post,
+                    currentUserId: widget.currentUserId,
+                    onChanged: (updated) {
+                      setState(() {
+                        post = GroupPostModel(
+                          id: post.id,
+                          userId: post.userId,
+                          userName: post.userName,
+                          userAvatar: post.userAvatar,
+                          tag: post.tag,
+                          postType: post.postType,
+                          content: post.content,
+                          images: post.images,
+                          timeText: post.timeText,
+                          isEdited: post.isEdited,
+                          createdAt: post.createdAt,
+                          rating: post.rating,
+                          productId: post.productId,
+                          productName: post.productName,
+                          productImage: post.productImage,
+                          repurchase: post.repurchase,
+                          improvedSkin: post.improvedSkin,
+                          wasGift: post.wasGift,
+                          adverseReaction: post.adverseReaction,
+                          texture: post.texture,
+                          usageWeeks: post.usageWeeks,
+                          likes: post.likes,
+                          comments: post.comments,
+                          groupId: post.groupId,
+                          groupTitle: post.groupTitle,
+                          groupSlug: post.groupSlug,
+                          reactions: updated,
+                          isPinned: post.isPinned,
+                        );
+                      });
                     },
                   ),
+                  const SizedBox(height: 18),
+                  Container(
+                    width: double.infinity,
+                    height: 1,
+                    color: const Color(0xFFE9E9E9),
+                  ),
+                  const SizedBox(height: 16),
+                  if (sortedComments.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: Row(
+                        children: [
+                          Text(
+                            "Comments",
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF2A2A2A),
+                            ),
+                          ),
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: () => setState(
+                              () => commentSortMode = CommentSortMode.helpful,
+                            ),
+                            child: Text(
+                              "Most Helpful",
+                              style: GoogleFonts.poppins(
+                                fontSize: 12.5,
+                                fontWeight: commentSortMode ==
+                                        CommentSortMode.helpful
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: commentSortMode ==
+                                        CommentSortMode.helpful
+                                    ? CommunityColors.wine
+                                    : const Color(0xFF9A9A9A),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: () => setState(
+                              () => commentSortMode = CommentSortMode.newest,
+                            ),
+                            child: Text(
+                              "Newest",
+                              style: GoogleFonts.poppins(
+                                fontSize: 12.5,
+                                fontWeight: commentSortMode ==
+                                        CommentSortMode.newest
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: commentSortMode ==
+                                        CommentSortMode.newest
+                                    ? CommunityColors.wine
+                                    : const Color(0xFF9A9A9A),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ...sortedComments.map((comment) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 20),
@@ -1028,6 +815,7 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                               isEdited: post.isEdited,
                               createdAt: post.createdAt,
                               rating: post.rating,
+                              productId: post.productId,
                               productName: post.productName,
                               productImage: post.productImage,
                               repurchase: post.repurchase,
@@ -1040,6 +828,8 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                               groupId: post.groupId,
                               groupTitle: post.groupTitle,
                               groupSlug: post.groupSlug,
+                              reactions: post.reactions,
+                              isPinned: post.isPinned,
                               comments: (result["data"]["comments"] as List)
                                   .map(
                                     (e) => PostCommentModel.fromJson(

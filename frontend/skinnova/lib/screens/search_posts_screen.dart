@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../api_service.dart';
 import 'post_page.dart';
+import 'community/post_card.dart';
+
 import 'group_type_results_screen.dart';
 
 class SearchPostsScreen extends StatefulWidget {

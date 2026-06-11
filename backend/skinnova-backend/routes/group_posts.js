@@ -2,6 +2,8 @@ const express = require("express");
 const GroupPost = require("../models/group_posts");
 const Group = require("../models/group");
 const Product = require("../models/product");
+const User = require("../models/user");
+const GroupMembership = require("../models/GroupMembership");
 const multer = require("multer");
 const { getAppSettings } = require("../helpers/getAppSettings");
 const path = require("path");
@@ -254,6 +256,74 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Ranked home feed
+router.get("/feed", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const filter = req.query.filter || "all";
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+
+    const memberships = await GroupMembership.find({ userId }).select("groupId");
+    const joinedGroupIds = new Set(memberships.map((m) => m.groupId.toString()));
+
+    const currentUser = await User.findById(userId).select("following");
+    const followedUserIds = new Set(
+      (currentUser?.following || []).map((id) => id.toString())
+    );
+
+    const now = Date.now();
+    let query = { ...publicFilter };
+
+    if (filter === "myGroups") {
+      query.groupId = { $in: [...joinedGroupIds] };
+    } else if (filter === "following") {
+      query.userId = { $in: [...followedUserIds] };
+    } else if (["question", "tip", "review", "routine", "before_after"].includes(filter)) {
+      query.postType = filter;
+    } else if (filter === "trending") {
+      query.createdAt = { $gte: new Date(now - 7 * 24 * 60 * 60 * 1000) };
+    }
+
+    const posts = await GroupPost.find(query).lean();
+
+    const scored = posts.map((p) => {
+      const ageHours = (now - new Date(p.createdAt).getTime()) / 3600000;
+      const recencyDecay = Math.max(0, 48 - ageHours) / 48;
+      const reactionCount = (p.reactions || []).length;
+      const commentCount = (p.comments || []).length;
+
+      let score = reactionCount * 2 + commentCount * 3 + recencyDecay * 10;
+      if (p.groupId && joinedGroupIds.has(p.groupId.toString())) score += 15;
+      if (followedUserIds.has(p.userId)) score += 10;
+
+      return { post: p, score, reactionCount, commentCount };
+    });
+
+    if (filter === "latest" || filter === "following") {
+      scored.sort((a, b) => new Date(b.post.createdAt) - new Date(a.post.createdAt));
+    } else if (filter === "trending") {
+      scored.sort(
+        (a, b) => b.reactionCount + b.commentCount - (a.reactionCount + a.commentCount)
+      );
+    } else {
+      scored.sort((a, b) => b.score - a.score);
+    }
+
+    const start = (page - 1) * limit;
+    const pageItems = scored.slice(start, start + limit).map((s) => s.post);
+
+    res.status(200).json(pageItems);
+  } catch (error) {
+    console.log("FEED ERROR:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 
 router.delete("/:id", async (req, res) => {
   try {
@@ -319,6 +389,85 @@ router.put("/:id/like", async (req, res) => {
     });
   }
 });
+router.put("/:id/reaction", async (req, res) => {
+  try {
+    const { userId, type } = req.body;
+    if (!userId || !["helpful", "useful", "loveIt"].includes(type)) {
+      return res.status(400).json({ message: "Invalid userId or reaction type" });
+    }
+
+    const post = await GroupPost.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const existingIdx = post.reactions.findIndex((r) => r.userId === userId);
+    let action;
+
+    if (existingIdx === -1) {
+      post.reactions.push({ userId, type });
+      action = "added";
+    } else if (post.reactions[existingIdx].type === type) {
+      post.reactions.splice(existingIdx, 1);
+      action = "removed";
+    } else {
+      post.reactions[existingIdx].type = type;
+      action = "replaced";
+    }
+
+    await post.save();
+
+    if (action !== "removed" && post.userId && post.userId.toString() !== userId) {
+      sendNotification({
+        userId: post.userId.toString(),
+        title: "Someone reacted to your post ❤️",
+        body: "Your post received a new reaction",
+        type: "post_like",
+        postId: post._id.toString(),
+        data: { type: "post_like", postId: post._id.toString() },
+      }).catch(() => {});
+    }
+
+    res.status(200).json({
+      message: action,
+      reactions: post.reactions,
+    });
+  } catch (error) {
+    console.log("REACTION ERROR:", error);
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+router.put("/:id/pin", async (req, res) => {
+  try {
+    const { userId, isPinned } = req.body;
+    const user = await User.findById(userId);
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ message: "Admin only" });
+    }
+
+    const post = await GroupPost.findByIdAndUpdate(
+      req.params.id,
+      { isPinned: !!isPinned },
+      { new: true }
+    );
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    res.status(200).json({ message: "Updated", post });
+  } catch (error) {
+    console.log("PIN POST ERROR:", error);
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
 router.post("/:id/comments", async (req, res) => {
   try {
 const {
@@ -513,24 +662,30 @@ router.post("/update", async (req, res) => {
       userName,
       userAvatar,
       content,
+      images,
       productId,
       productName,
       productImage,
       groupId,
       groupTitle,
       groupSlug,
+      postType,
     } = req.body;
 
     if (!content || !content.trim()) {
       return res.status(400).json({ message: "Update content is required" });
     }
 
+    const allowedTypes = ["update", "tip", "routine", "before_after"];
+    const resolvedType = allowedTypes.includes(postType) ? postType : "update";
+
     const newPost = new GroupPost({
       userId,
       userName,
       userAvatar: userAvatar || "",
-      postType: "update",
+      postType: resolvedType,
       content: content.trim(),
+      images: images || [],
       productId: productId || null,
       productName: productName || "",
       productImage: productImage || "",
