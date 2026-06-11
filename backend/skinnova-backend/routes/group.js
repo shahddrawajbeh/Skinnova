@@ -3,6 +3,7 @@ const express = require("express");
 const Group = require("../models/group");
 const GroupMembership = require("../models/GroupMembership");
 const Product = require("../models/product");
+const GroupPost = require("../models/group_posts");
 
 const router = express.Router();
 
@@ -77,6 +78,239 @@ router.get("/type/:groupType", async (req, res) => {
     });
   }
 });
+
+router.get("/:slug/members", async (req, res) => {
+  try {
+    const slug = req.params.slug.trim().toLowerCase();
+    const { userId } = req.query;
+
+    const group = await Group.findOne({ slug, isActive: true });
+    if (!group) {
+      return res.status(404).json({ message: "Group not found" });
+    }
+
+    const memberships = await GroupMembership.find({ groupId: group._id }).sort({
+      createdAt: -1,
+    });
+    const userIds = memberships.map((m) => m.userId);
+
+    const users = await User.find({ _id: { $in: userIds } }).select(
+      "fullName profileImage following followers"
+    );
+    const usersById = {};
+    users.forEach((u) => {
+      usersById[u._id.toString()] = u;
+    });
+
+    let requestingUser = null;
+    if (userId) {
+      requestingUser = await User.findById(userId).select("following followers");
+    }
+
+    const members = memberships
+      .map((m) => {
+        const user = usersById[m.userId];
+        if (!user) return null;
+
+        const userIdStr = user._id.toString();
+        const isFollowedByMe = requestingUser
+          ? requestingUser.following.some((id) => id.toString() === userIdStr)
+          : false;
+        const isMutual =
+          isFollowedByMe && requestingUser
+            ? requestingUser.followers.some((id) => id.toString() === userIdStr)
+            : false;
+
+        return {
+          _id: userIdStr,
+          fullName: user.fullName,
+          profileImage: user.profileImage,
+          joinedAt: m.createdAt,
+          isFollowedByMe,
+          isMutual,
+        };
+      })
+      .filter(Boolean);
+
+    res.status(200).json(members);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch group members",
+      error: error.message,
+    });
+  }
+});
+
+router.get("/my-groups/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const memberships = await GroupMembership.find({ userId }).sort({ createdAt: -1 });
+    const groupIds = memberships.map((m) => m.groupId);
+
+    const groups = await Group.find({ _id: { $in: groupIds }, isActive: true });
+
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const result = await Promise.all(
+      groups.map(async (group) => {
+        const hasNewActivity = await GroupPost.exists({
+          groupId: group._id,
+          isHidden: { $ne: true },
+          approvalStatus: { $ne: "rejected" },
+          createdAt: { $gte: since },
+        });
+
+        return {
+          ...group.toObject(),
+          hasNewActivity: !!hasNewActivity,
+        };
+      })
+    );
+
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch your groups",
+      error: error.message,
+    });
+  }
+});
+
+router.get("/friends-activity/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId).select("following");
+    if (!user || !user.following || user.following.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const followingIds = user.following.map((id) => id.toString());
+
+    const memberships = await GroupMembership.find({
+      userId: { $in: followingIds },
+      createdAt: { $gte: since },
+    }).sort({ createdAt: -1 });
+
+    if (memberships.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    const friendIds = [...new Set(memberships.map((m) => m.userId))];
+    const groupIds = [...new Set(memberships.map((m) => m.groupId.toString()))];
+
+    const friends = await User.find({ _id: { $in: friendIds } }).select(
+      "fullName profileImage"
+    );
+    const friendsById = {};
+    friends.forEach((f) => {
+      friendsById[f._id.toString()] = f;
+    });
+
+    const groups = await Group.find({ _id: { $in: groupIds } });
+    const groupsById = {};
+    groups.forEach((g) => {
+      groupsById[g._id.toString()] = g;
+    });
+
+    const result = await Promise.all(
+      memberships.map(async (m) => {
+        const friend = friendsById[m.userId];
+        const group = groupsById[m.groupId.toString()];
+        if (!friend || !group) return null;
+
+        const newPostsCount = await GroupPost.countDocuments({
+          groupId: group._id,
+          isHidden: { $ne: true },
+          approvalStatus: { $ne: "rejected" },
+          createdAt: { $gte: m.createdAt },
+        });
+
+        return {
+          friendId: friend._id.toString(),
+          friendName: friend.fullName,
+          friendAvatar: friend.profileImage,
+          groupSlug: group.slug,
+          groupTitle: group.title,
+          activityAt: m.createdAt,
+          newPostsCount,
+        };
+      })
+    );
+
+    res.status(200).json(result.filter(Boolean));
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch friends activity",
+      error: error.message,
+    });
+  }
+});
+
+router.get("/suggested/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId).select("onboarding");
+    const onboarding = (user && user.onboarding) || {};
+
+    const memberships = await GroupMembership.find({ userId });
+    const joinedGroupIds = memberships.map((m) => m.groupId.toString());
+
+    const groups = await Group.find({
+      _id: { $nin: joinedGroupIds },
+      isActive: true,
+    });
+
+    const matched = [];
+    const unmatched = [];
+
+    groups.forEach((group) => {
+      const key = (group.categoryKey || group.title || "").toLowerCase().trim();
+      let isMatch = false;
+
+      if (group.groupType === "medications") {
+        const chronicCondition = (onboarding.chronicCondition || "").toLowerCase().trim();
+        const specialConditions = onboarding.specialConditions || [];
+
+        isMatch =
+          (chronicCondition && chronicCondition.includes(key)) ||
+          specialConditions.some((c) => c.toLowerCase().trim() === key);
+      } else if (group.groupType === "skin_types") {
+        const concerns = onboarding.skinConcerns || [];
+        isMatch = concerns.some((c) => c.toLowerCase().trim() === key);
+      } else if (group.groupType === "skin_tones") {
+        const userTone = (onboarding.skinPhototype || "").toLowerCase().trim();
+        isMatch = userTone === key;
+      } else {
+        const userSkinType = (onboarding.skinType || "").toLowerCase().trim();
+        isMatch =
+          userSkinType === key ||
+          userSkinType === `${key} skin` ||
+          userSkinType.replace(" skin", "") === key;
+      }
+
+      if (isMatch) {
+        matched.push(group);
+      } else {
+        unmatched.push(group);
+      }
+    });
+
+    matched.sort((a, b) => (b.membersCount || 0) - (a.membersCount || 0));
+    unmatched.sort((a, b) => (b.membersCount || 0) - (a.membersCount || 0));
+
+    res.status(200).json([...matched, ...unmatched]);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch suggested groups",
+      error: error.message,
+    });
+  }
+});
+
 router.get("/:slug/people", async (req, res) => {
   try {
     const slug = req.params.slug.trim().toLowerCase();

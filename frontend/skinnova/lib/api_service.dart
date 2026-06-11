@@ -10,6 +10,7 @@ import 'app_user_model.dart';
 import '../active_ingredient_model.dart';
 import '../medication_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'screens/community/community_models.dart';
 
 class ApiService {
   static const String baseUrl = "http://10.0.2.2:5000";
@@ -987,6 +988,154 @@ class ApiService {
       return data["imageUrl"];
     } else {
       return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>> toggleReaction({
+    required String postId,
+    required String userId,
+    required String type,
+  }) async {
+    final response = await http.put(
+      Uri.parse("$baseUrl/api/group-posts/$postId/reaction"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"userId": userId, "type": type}),
+    );
+
+    return {
+      "statusCode": response.statusCode,
+      "data": jsonDecode(response.body),
+    };
+  }
+
+  static Future<Map<String, dynamic>> addGenericPost({
+    required String userId,
+    required String userName,
+    required String userAvatar,
+    required String content,
+    String postType = "update",
+    List<String> images = const [],
+    String productId = "",
+    String productName = "",
+    String productImage = "",
+    String groupId = "",
+    String groupTitle = "",
+    String groupSlug = "",
+  }) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/api/group-posts/update"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "userId": userId,
+        "userName": userName,
+        "userAvatar": userAvatar,
+        "content": content,
+        "postType": postType,
+        "images": images,
+        "productId": productId,
+        "productName": productName,
+        "productImage": productImage,
+        "groupId": groupId,
+        "groupTitle": groupTitle,
+        "groupSlug": groupSlug,
+      }),
+    );
+
+    return {
+      "statusCode": response.statusCode,
+      "data": jsonDecode(response.body),
+    };
+  }
+
+  static Future<List<GroupPostModel>> fetchFeed({
+    required String userId,
+    String filter = "all",
+    int page = 1,
+    int limit = 10,
+  }) async {
+    final uri = Uri.parse("$baseUrl/api/group-posts/feed").replace(
+      queryParameters: {
+        "userId": userId,
+        "filter": filter,
+        "page": "$page",
+        "limit": "$limit",
+      },
+    );
+
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data
+          .map((e) => GroupPostModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } else {
+      return [];
+    }
+  }
+
+  static Future<List<MyGroupModel>> fetchMyGroups(String userId) async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/api/groups/my-groups/$userId"),
+    );
+
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data
+          .map((e) => MyGroupModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } else {
+      return [];
+    }
+  }
+
+  static Future<List<FriendActivityModel>> fetchFriendsActivity(
+      String userId) async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/api/groups/friends-activity/$userId"),
+    );
+
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data
+          .map((e) =>
+              FriendActivityModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } else {
+      return [];
+    }
+  }
+
+  static Future<List<GroupModel>> fetchSuggestedGroups(String userId) async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/api/groups/suggested/$userId"),
+    );
+
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((e) => GroupModel.fromJson(e)).toList();
+    } else {
+      return [];
+    }
+  }
+
+  static Future<List<GroupMemberModel>> fetchGroupMembers(
+    String slug,
+    String requestingUserId,
+  ) async {
+    final uri = Uri.parse("$baseUrl/api/groups/$slug/members").replace(
+      queryParameters: {"userId": requestingUserId},
+    );
+
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data
+          .map((e) => GroupMemberModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } else {
+      return [];
     }
   }
 //   static Future<List<GroupModel>> fetchGroupsByType(String groupType) async {
