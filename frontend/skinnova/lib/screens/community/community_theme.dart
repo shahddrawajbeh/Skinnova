@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_theme.dart';
 
 export '../admin_widgets.dart' show FadeSlideIn;
@@ -141,6 +142,171 @@ class _PulsingSkeletonState extends State<PulsingSkeleton>
         );
       },
     );
+  }
+}
+
+/// Deterministic skincare-themed gradients + icons used as fallback
+/// visuals for groups/communities/friends that have no uploaded image.
+class GroupVisuals {
+  static const List<List<Color>> gradients = [
+    [Color(0xFFFCE4EC), Color(0xFFF48FB1)], // soft pink
+    [Color(0xFFE0F7FA), Color(0xFF80DEEA)], // aqua
+    [Color(0xFFFFF3E0), Color(0xFFFFCC80)], // peach
+    [Color(0xFFF3E5F5), Color(0xFFCE93D8)], // lavender
+    [Color(0xFFE8F5E9), Color(0xFFA5D6A7)], // mint
+    [Color(0xFFFFF8E1), Color(0xFFFFD54F)], // cream gold
+    [Color(0xFFEDE7F6), Color(0xFFB39DDB)], // periwinkle
+    [Color(0xFFFBE9E7), Color(0xFFFFAB91)], // coral
+  ];
+
+  static const List<IconData> icons = [
+    Icons.spa_rounded,
+    Icons.water_drop_rounded,
+    Icons.local_florist_rounded,
+    Icons.face_retouching_natural_rounded,
+    Icons.eco_rounded,
+    Icons.favorite_rounded,
+    Icons.bubble_chart_rounded,
+    Icons.wb_sunny_rounded,
+  ];
+
+  static int _hash(String key) =>
+      key.codeUnits.fold<int>(0, (sum, c) => sum + c);
+
+  static List<Color> gradientFor(String seed) =>
+      gradients[_hash(seed) % gradients.length];
+
+  static IconData iconFor(String seed) =>
+      icons[_hash(seed) % icons.length];
+}
+
+/// Circular avatar for a group/community/person. Shows [imageUrl] when
+/// available; otherwise renders a skincare-themed gradient with either an
+/// icon or [fallbackText] (e.g. initials), picked deterministically from
+/// [seed] so the same entity always gets the same look.
+class GroupAvatar extends StatelessWidget {
+  final String imageUrl;
+  final String seed;
+  final double size;
+  final String? fallbackText;
+
+  const GroupAvatar({
+    super.key,
+    required this.imageUrl,
+    required this.seed,
+    this.size = 56,
+    this.fallbackText,
+  });
+
+  Widget _fallback() {
+    final colors = GroupVisuals.gradientFor(seed);
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: colors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: fallbackText != null && fallbackText!.isNotEmpty
+          ? Text(
+              fallbackText!,
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: size * 0.36,
+              ),
+            )
+          : Icon(
+              GroupVisuals.iconFor(seed),
+              color: Colors.white,
+              size: size * 0.46,
+            ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = _fallback();
+    return ClipOval(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: imageUrl.isEmpty
+            ? fallback
+            : (imageUrl.startsWith('http')
+                ? Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => fallback,
+                  )
+                : Image.asset(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => fallback,
+                  )),
+      ),
+    );
+  }
+}
+
+/// Rectangular cover image for a group/community card or header. Shows
+/// [imageUrl] when available; otherwise a skincare-themed gradient with a
+/// large centered icon, picked deterministically from [seed].
+class GroupCoverImage extends StatelessWidget {
+  final String imageUrl;
+  final String seed;
+  final double? height;
+  final double? width;
+
+  const GroupCoverImage({
+    super.key,
+    required this.imageUrl,
+    required this.seed,
+    this.height,
+    this.width,
+  });
+
+  Widget _fallback() {
+    final colors = GroupVisuals.gradientFor(seed);
+    return Container(
+      height: height,
+      width: width,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: colors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        GroupVisuals.iconFor(seed),
+        color: Colors.white.withOpacity(0.85),
+        size: (height ?? 120) * 0.4,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl.isEmpty) return _fallback();
+    return imageUrl.startsWith('http')
+        ? Image.network(
+            imageUrl,
+            height: height,
+            width: width,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _fallback(),
+          )
+        : Image.asset(
+            imageUrl,
+            height: height,
+            width: width,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _fallback(),
+          );
   }
 }
 

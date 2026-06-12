@@ -105,15 +105,12 @@ class _DiscoverCommunitiesSliderState
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      group.coverImage.isNotEmpty
-                          ? Image.network(
-                              group.coverImage,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                color: CommunityColors.lightSoftPink,
-                              ),
-                            )
-                          : Container(color: CommunityColors.lightSoftPink),
+                      GroupCoverImage(
+                        imageUrl: group.coverImage,
+                        seed: group.slug.isNotEmpty
+                            ? group.slug
+                            : group.title,
+                      ),
                       DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(

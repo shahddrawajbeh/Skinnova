@@ -109,7 +109,7 @@ class _AuthPopupState extends State<AuthPopup> {
         context,
         MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
       );
-    } else if (role == "saller") {
+    } else if (role == "seller") {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const SellerHomeScreen()),

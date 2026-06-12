@@ -8,6 +8,7 @@ const StoreProduct = require("../models/storeProduct");
 const Store = require("../models/store");
 const User = require("../models/user");
 const { sendNotification, sendNotificationToRole } = require("../services/notificationService");
+const { verifyStoreOwner, resolveOrderStoreId } = require("../middleware/storeOwnerMiddleware");
 
 // create order
 router.post("/create", async (req, res) => {
@@ -211,7 +212,7 @@ router.post("/create", async (req, res) => {
 });
 
 // GET all orders for a seller's store
-router.get("/store/:storeId", async (req, res) => {
+router.get("/store/:storeId", verifyStoreOwner((req) => req.params.storeId), async (req, res) => {
   try {
     const orders = await Order.find({ storeId: req.params.storeId })
       .populate("items.productId", "name imageUrl brand")
@@ -246,7 +247,7 @@ router.get("/detail/:orderId", async (req, res) => {
 });
 
 // PUT update order status (seller action)
-router.put("/:orderId/status", async (req, res) => {
+router.put("/:orderId/status", verifyStoreOwner(resolveOrderStoreId), async (req, res) => {
   try {
     const { status } = req.body;
     const allowed = [

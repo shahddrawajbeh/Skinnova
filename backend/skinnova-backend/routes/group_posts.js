@@ -279,7 +279,9 @@ router.get("/feed", async (req, res) => {
     const now = Date.now();
     let query = { ...publicFilter };
 
-    if (filter === "myGroups") {
+    if (filter === "mine") {
+      query.userId = userId;
+    } else if (filter === "myGroups") {
       query.groupId = { $in: [...joinedGroupIds] };
     } else if (filter === "following") {
       query.userId = { $in: [...followedUserIds] };

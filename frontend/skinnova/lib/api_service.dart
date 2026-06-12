@@ -3691,6 +3691,21 @@ class ApiService {
     return res.statusCode == 200;
   }
 
+  static Future<String?> adminUploadGroupImage(
+      String adminId, File imageFile) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/api/admin/groups/upload-image'),
+    );
+    request.headers['x-admin-id'] = adminId;
+    request.files
+        .add(await http.MultipartFile.fromPath('image', imageFile.path));
+    final streamed = await request.send();
+    final body = await streamed.stream.bytesToString();
+    if (streamed.statusCode == 200) return jsonDecode(body)['imageUrl'];
+    return null;
+  }
+
   /// Get posts belonging to a specific group (admin)
   static Future<Map<String, dynamic>> adminGetGroupPostsByGroup(
       String adminId, String groupId) async {

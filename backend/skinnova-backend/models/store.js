@@ -189,6 +189,10 @@ const storeSchema = new mongoose.Schema(
           type: Date,
           default: Date.now,
         },
+        sellerReply: {
+          comment: { type: String, default: "" },
+          repliedAt: { type: Date, default: null },
+        },
       },
     ],
 

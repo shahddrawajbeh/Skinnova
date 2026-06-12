@@ -108,6 +108,9 @@ followedStores: [
       allowPersonalizedRecommendations: { type: Boolean, default: true },
       allowImageStorage: { type: Boolean, default: true },
     },
+
+    // Date of the last AI skin scan performed from the web app (1/day limit)
+    lastWebAiScanDate: { type: Date, default: null },
     onboarding: {
       gender: String,
       ageRange: String,

@@ -345,6 +345,55 @@ const scanPrivacy = user?.scanPrivacy || {};
   }
 });
 
+// Helper: true if the given date falls on today's calendar day
+function isToday(date) {
+  if (!date) return false;
+  const d = new Date(date);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
+// GET /web-quota/:userId — check whether the web AI scan (1/day) is still available
+router.get('/web-quota/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('lastWebAiScanDate');
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    const allowed = !isToday(user.lastWebAiScanDate);
+    res.json({ allowed });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to check web AI scan quota.', error: err.message });
+  }
+});
+
+// POST /web-quota/claim — claim today's web AI scan (1/day), call before running AI analysis
+router.post('/web-quota/claim', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ message: 'userId is required.' });
+
+    const user = await User.findById(userId).select('lastWebAiScanDate');
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+
+    if (isToday(user.lastWebAiScanDate)) {
+      return res.status(403).json({
+        allowed: false,
+        message:
+          'You have used your free AI scan for today on web. Download the mobile app for full AI access and camera scanning.',
+      });
+    }
+
+    user.lastWebAiScanDate = new Date();
+    await user.save();
+    res.json({ allowed: true });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to claim web AI scan quota.', error: err.message });
+  }
+});
+
 // GET /history/:userId — all scans for a user, newest first
 router.get('/history/:userId', async (req, res) => {
   try {

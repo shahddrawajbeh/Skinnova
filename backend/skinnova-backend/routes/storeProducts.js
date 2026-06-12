@@ -5,6 +5,7 @@ const User = require("../models/user");
 const Store = require("../models/store");
 const Product = require("../models/product");
 const { sendNotification } = require("../services/notificationService");
+const { verifyStoreOwner, resolveStoreProductStoreId } = require("../middleware/storeOwnerMiddleware");
 const router = express.Router();
 
 // Helper: send in-app + push + email to all followers of a store
@@ -72,7 +73,7 @@ router.get("/product/:productId", async (req, res) => {
   }
 });
 // CREATE or UPDATE store product
-router.post("/", async (req, res) => {
+router.post("/", verifyStoreOwner((req) => req.body.storeId), async (req, res) => {
   try {
     const { storeId, productId, sellerId, price, currency, stockCount } = req.body;
 
@@ -156,10 +157,10 @@ router.post("/", async (req, res) => {
 // GET all products sold by a specific store
 router.get("/store/:storeId", async (req, res) => {
   try {
-    const products = await StoreProduct.find({
-      storeId: req.params.storeId,
-      isAvailable: true,
-    })
+    const filter = { storeId: req.params.storeId };
+    if (req.query.all !== "true") filter.isAvailable = true;
+
+    const products = await StoreProduct.find(filter)
       .populate("storeId")
       .populate("productId")
       .populate("sellerId", "fullName email role")
@@ -242,7 +243,7 @@ trendingScore:
   }
 });
 // PUT update a store product (price / stock / availability)
-router.put("/:id", async (req, res) => {
+router.put("/:id", verifyStoreOwner(resolveStoreProductStoreId), async (req, res) => {
   try {
     const sp = await StoreProduct.findById(req.params.id);
     if (!sp) return res.status(404).json({ message: "Store product not found" });
@@ -271,7 +272,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE a product from the store
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", verifyStoreOwner(resolveStoreProductStoreId), async (req, res) => {
   try {
     const sp = await StoreProduct.findByIdAndDelete(req.params.id);
     if (!sp) return res.status(404).json({ message: "Store product not found" });

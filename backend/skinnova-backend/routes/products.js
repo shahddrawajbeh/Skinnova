@@ -1,9 +1,27 @@
 
 const express = require("express");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 const Product = require("../models/product");
 const { getAppSettings } = require("../helpers/getAppSettings");
+const { requireSellerOrAdmin } = require("../middleware/storeOwnerMiddleware");
 
 const router = express.Router();
+
+const productUploadDir = path.join(__dirname, "../uploads/products");
+if (!fs.existsSync(productUploadDir)) {
+  fs.mkdirSync(productUploadDir, { recursive: true });
+}
+const uploadProductImage = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, productUploadDir),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      cb(null, `product-${Date.now()}${ext}`);
+    },
+  }),
+});
 
 router.post("/", async (req, res) => {
   try {
@@ -168,6 +186,39 @@ router.get("/:id", async (req, res) => {
       error: error.message,
     });
   }
+});
+
+// UPDATE editable product fields (used by Store Owner dashboard)
+router.put("/:id", requireSellerOrAdmin, async (req, res) => {
+  try {
+    const ALLOWED_FIELDS = [
+      "name", "brand", "category", "shortDescription", "directionsOfUse",
+      "imageUrl", "ingredients", "whatsInside", "brandOrigin", "price",
+      "currency", "inStock", "stockCount", "size", "discountPercent",
+      "recommendedFor", "isPublished", "isHidden",
+    ];
+
+    const update = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (req.body[key] !== undefined) update[key] = req.body[key];
+    }
+    if (update.category) update.category = update.category.trim().toLowerCase();
+
+    const product = await Product.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    res.status(200).json({ message: "Product updated successfully", product });
+  } catch (error) {
+    console.log("❌ UPDATE PRODUCT ERROR:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// Upload a product image (used by Store Owner dashboard)
+router.post("/upload-image", requireSellerOrAdmin, uploadProductImage.single("image"), (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No image uploaded" });
+  const imageUrl = `${req.protocol}://${req.get("host")}/uploads/products/${req.file.filename}`;
+  res.json({ imageUrl });
 });
 router.post("/:id/reviews", async (req, res) => {
   try {

@@ -17,3 +17,8 @@ ai/venv/
 
 # Contains API keys — keep local only
 frontend/skinnova/lib/config/api_config.dart
+
+# Web app build output and dependencies (rebuildable)
+frontend-web/node_modules/
+frontend-web/dist/
+frontend-web/.env.local

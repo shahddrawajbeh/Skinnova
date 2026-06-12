@@ -67,22 +67,15 @@ class FriendsActiveSlider extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: const Color(0xFFEAEAEA),
-                        backgroundImage: item.friendAvatar.isNotEmpty
-                            ? NetworkImage(item.friendAvatar)
-                            : null,
-                        child: item.friendAvatar.isEmpty
-                            ? Text(
-                                item.friendName.isNotEmpty
-                                    ? item.friendName[0].toUpperCase()
-                                    : "U",
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              )
-                            : null,
+                      GroupAvatar(
+                        imageUrl: item.friendAvatar,
+                        seed: item.friendName.isNotEmpty
+                            ? item.friendName
+                            : item.friendId,
+                        size: 40,
+                        fallbackText: item.friendName.isNotEmpty
+                            ? item.friendName[0].toUpperCase()
+                            : "U",
                       ),
                       const SizedBox(width: 10),
                       Expanded(
