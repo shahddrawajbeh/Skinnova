@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api_service.dart';
 import 'admin_dashboard.dart';
@@ -80,93 +82,185 @@ class _AdminGroupsScreenState extends State<AdminGroupsScreen> {
     final profileCtrl =
         TextEditingController(text: group?['profileImage'] ?? '');
     String groupType = group?['groupType'] ?? 'skin_concerns';
+    bool uploadingCover = false;
+    bool uploadingProfile = false;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(group == null ? "Add Group" : "Edit Group",
-              style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
-                  color: AdminTheme.black)),
-          content: SizedBox(
-            width: 420,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                _field("Title *", titleCtrl),
-                const SizedBox(height: 10),
-                _field("Slug *", slugCtrl, hint: "e.g. acne"),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  value: groupType,
-                  decoration: _inputDec("Group Type"),
-                  items: _groupTypes
-                      .skip(1)
-                      .map((t) => DropdownMenuItem(
-                          value: t,
-                          child: Text(t,
-                              style: GoogleFonts.poppins(fontSize: 13))))
-                      .toList(),
-                  onChanged: (v) => setS(() => groupType = v!),
-                ),
-                const SizedBox(height: 10),
-                _field("Category Key", categoryCtrl, hint: "e.g. acne"),
-                const SizedBox(height: 10),
-                _field("Description", descCtrl, maxLines: 3),
-                const SizedBox(height: 10),
-                _field("Cover Image URL or Asset", coverCtrl,
-                    hint: "https://... or assets/images/..."),
-                const SizedBox(height: 10),
-                _field("Profile Image URL or Asset", profileCtrl,
-                    hint: "https://... or assets/images/..."),
-              ]),
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text("Cancel",
-                    style: GoogleFonts.poppins(color: AdminTheme.grey))),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: AdminTheme.wine,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12))),
-              onPressed: () async {
-                Navigator.pop(ctx);
-                try {
-                  // membersCount intentionally excluded from payload
-                  final data = {
-                    'title': titleCtrl.text.trim(),
-                    'slug': slugCtrl.text.trim().toLowerCase(),
-                    'description': descCtrl.text.trim(),
-                    'categoryKey': categoryCtrl.text.trim().toLowerCase(),
-                    'coverImage': coverCtrl.text.trim(),
-                    'profileImage': profileCtrl.text.trim(),
-                    'groupType': groupType,
-                  };
-                  if (group == null) {
-                    await ApiService.adminCreateGroup(_adminId, data);
-                    _showSnack("Group created");
-                  } else {
-                    await ApiService.adminUpdateGroup(
-                        _adminId, group['_id'], data);
-                    _showSnack("Group updated");
-                  }
-                  _load();
-                } catch (e) {
-                  _showSnack(e.toString(), error: true);
+        builder: (ctx, setS) {
+          Future<void> pickAndUpload(
+              TextEditingController ctrl, bool isCover) async {
+            final picked = await ImagePicker()
+                .pickImage(source: ImageSource.gallery, imageQuality: 85);
+            if (picked == null) return;
+            setS(() {
+              if (isCover) {
+                uploadingCover = true;
+              } else {
+                uploadingProfile = true;
+              }
+            });
+            try {
+              final url = await ApiService.adminUploadGroupImage(
+                  _adminId, File(picked.path));
+              if (url != null) {
+                setS(() => ctrl.text = url);
+              } else {
+                _showSnack("Image upload failed", error: true);
+              }
+            } catch (_) {
+              _showSnack("Image upload failed", error: true);
+            } finally {
+              setS(() {
+                if (isCover) {
+                  uploadingCover = false;
+                } else {
+                  uploadingProfile = false;
                 }
-              },
-              child:
-                  Text("Save", style: GoogleFonts.poppins(color: Colors.white)),
+              });
+            }
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            title: Text(group == null ? "Add Group" : "Edit Group",
+                style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: AdminTheme.black)),
+            content: SizedBox(
+              width: 420,
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  _field("Title *", titleCtrl),
+                  const SizedBox(height: 10),
+                  _field("Slug *", slugCtrl, hint: "e.g. acne"),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: groupType,
+                    decoration: _inputDec("Group Type"),
+                    items: _groupTypes
+                        .skip(1)
+                        .map((t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(t,
+                                style: GoogleFonts.poppins(fontSize: 13))))
+                        .toList(),
+                    onChanged: (v) => setS(() => groupType = v!),
+                  ),
+                  const SizedBox(height: 10),
+                  _field("Category Key", categoryCtrl, hint: "e.g. acne"),
+                  const SizedBox(height: 10),
+                  _field("Description", descCtrl, maxLines: 3),
+                  const SizedBox(height: 10),
+                  _imagePickerField(
+                    "Cover Image",
+                    coverCtrl,
+                    isUploading: uploadingCover,
+                    onPick: () => pickAndUpload(coverCtrl, true),
+                  ),
+                  const SizedBox(height: 14),
+                  _imagePickerField(
+                    "Profile Image",
+                    profileCtrl,
+                    isUploading: uploadingProfile,
+                    onPick: () => pickAndUpload(profileCtrl, false),
+                  ),
+                ]),
+              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text("Cancel",
+                      style: GoogleFonts.poppins(color: AdminTheme.grey))),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AdminTheme.wine,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  try {
+                    // membersCount intentionally excluded from payload
+                    final data = {
+                      'title': titleCtrl.text.trim(),
+                      'slug': slugCtrl.text.trim().toLowerCase(),
+                      'description': descCtrl.text.trim(),
+                      'categoryKey': categoryCtrl.text.trim().toLowerCase(),
+                      'coverImage': coverCtrl.text.trim(),
+                      'profileImage': profileCtrl.text.trim(),
+                      'groupType': groupType,
+                    };
+                    if (group == null) {
+                      await ApiService.adminCreateGroup(_adminId, data);
+                      _showSnack("Group created");
+                    } else {
+                      await ApiService.adminUpdateGroup(
+                          _adminId, group['_id'], data);
+                      _showSnack("Group updated");
+                    }
+                    _load();
+                  } catch (e) {
+                    _showSnack(e.toString(), error: true);
+                  }
+                },
+                child: Text("Save",
+                    style: GoogleFonts.poppins(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Image URL field with thumbnail preview + gallery upload button ────────
+  Widget _imagePickerField(
+    String label,
+    TextEditingController ctrl, {
+    required bool isUploading,
+    required VoidCallback onPick,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _field(label, ctrl, hint: "https://... or assets/images/..."),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: ctrl.text.trim().isNotEmpty
+                  ? _buildImage(ctrl.text.trim(), width: 56, height: 56)
+                  : _groupPlaceholderSized(56, 56),
+            ),
+            const SizedBox(width: 12),
+            OutlinedButton.icon(
+              onPressed: isUploading ? null : onPick,
+              icon: isUploading
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AdminTheme.wine),
+                    )
+                  : const Icon(Icons.upload_rounded,
+                      size: 16, color: AdminTheme.wine),
+              label: Text(isUploading ? "Uploading..." : "Upload Image",
+                  style: GoogleFonts.poppins(
+                      fontSize: 12.5, color: AdminTheme.wine)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AdminTheme.wine),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 

@@ -31,7 +31,7 @@ const [usersRaw, total] = await Promise.all([
 
 const users = await Promise.all(
   usersRaw.map(async (user) => {
-    if (user.role === "saller") {
+    if (user.role === "seller") {
       const store = await Store.findOne({ sellerId: user._id }).lean();
 
       return {

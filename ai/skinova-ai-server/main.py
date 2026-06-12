@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 import cv2
 import numpy as np
 import tempfile
@@ -6,6 +7,15 @@ from inference_sdk import InferenceHTTPClient
 from ultralytics import YOLO
 
 app = FastAPI()
+
+# Allow the web app (and local dev servers) to call this API directly from the browser
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 model = YOLO("yolov8n-face.pt")
 client = InferenceHTTPClient(

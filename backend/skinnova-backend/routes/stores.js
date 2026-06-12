@@ -7,6 +7,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { sendNotification, sendNotificationToRole } = require("../services/notificationService");
+const { verifyStoreOwner } = require("../middleware/storeOwnerMiddleware");
 
 const router = express.Router();
 const storeUploadDir = path.join(__dirname, "../uploads/stores");
@@ -263,9 +264,33 @@ router.get("/:id/reviews", async (req, res) => {
         rating: r.rating,
         comment: r.comment,
         createdAt: r.createdAt,
+        sellerReply: r.sellerReply || null,
       }));
 
     res.status(200).json(approved);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// PUT seller reply to a review
+router.put("/:id/reviews/:reviewId/reply", verifyStoreOwner((req) => req.params.id), async (req, res) => {
+  try {
+    const { comment } = req.body;
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({ message: "Reply comment is required" });
+    }
+
+    const store = await Store.findById(req.params.id);
+    if (!store) return res.status(404).json({ message: "Store not found" });
+
+    const review = store.reviews.id(req.params.reviewId);
+    if (!review) return res.status(404).json({ message: "Review not found" });
+
+    review.sellerReply = { comment: comment.trim(), repliedAt: new Date() };
+    await store.save();
+
+    res.status(200).json({ message: "Reply saved", review });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -339,7 +364,7 @@ router.post("/", async (req, res) => {
   }
 });
 // Safe UPDATE store — only seller-editable fields
-router.put("/:id", async (req, res) => {
+router.put("/:id", verifyStoreOwner((req) => req.params.id), async (req, res) => {
   try {
     const ALLOWED_SCALAR = [
       "storeName", "description", "city", "address", "phone",
@@ -498,6 +523,15 @@ router.get("/:id/analytics", async (req, res) => {
       (r) => r.status === "approved"
     );
 
+    const statusBreakdown = {
+      pending: pendingOrders.length,
+      confirmed: orders.filter((o) => o.status === "confirmed").length,
+      processing: orders.filter((o) => o.status === "processing").length,
+      out_for_delivery: orders.filter((o) => o.status === "out_for_delivery").length,
+      delivered: completedOrders.length,
+      cancelled: cancelledOrders.length,
+    };
+
     res.status(200).json({
       productsCount: products.length,
       availableProducts: products.filter((p) => p.isAvailable).length,
@@ -513,6 +547,7 @@ router.get("/:id/analytics", async (req, res) => {
       ratingAverage: store.rating || 0,
       reviewsCount: approvedReviews.length,
       followersCount: store.followersCount || 0,
+      statusBreakdown,
       recentOrders: orders.slice(0, 5).map((o) => ({
         _id: o._id,
         customerName: (o.userId && o.userId.fullName) || o.fullName || "Customer",
@@ -537,7 +572,42 @@ router.get("/:id/analytics", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
-router.put("/:id/upload-logo", uploadStoreImage.single("image"), async (req, res) => {
+
+// GET revenue/order timeseries for charts
+router.get("/:id/analytics/timeseries", async (req, res) => {
+  try {
+    const days = Math.min(Math.max(parseInt(req.query.days) || 30, 1), 90);
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    since.setDate(since.getDate() - (days - 1));
+
+    const orders = await Order.find({
+      storeId: req.params.id,
+      createdAt: { $gte: since },
+    }).select("total status createdAt");
+
+    const buckets = {};
+    for (let i = 0; i < days; i++) {
+      const d = new Date(since);
+      d.setDate(d.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      buckets[key] = { date: key, revenue: 0, orders: 0 };
+    }
+
+    orders.forEach((o) => {
+      const key = o.createdAt.toISOString().slice(0, 10);
+      if (!buckets[key]) return;
+      buckets[key].orders += 1;
+      if (o.status !== "cancelled") buckets[key].revenue += o.total || 0;
+    });
+
+    res.status(200).json(Object.values(buckets));
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+router.put("/:id/upload-logo", verifyStoreOwner((req) => req.params.id), uploadStoreImage.single("image"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "No image uploaded" });
@@ -569,7 +639,7 @@ router.put("/:id/upload-logo", uploadStoreImage.single("image"), async (req, res
 });
 
 // ── Upload cover image ─────────────────────────────────────────────────────
-router.put("/:id/upload-cover", uploadStoreImage.single("image"), async (req, res) => {
+router.put("/:id/upload-cover", verifyStoreOwner((req) => req.params.id), uploadStoreImage.single("image"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "No image uploaded" });
     const coverImageUrl = `${req.protocol}://${req.get("host")}/uploads/stores/${req.file.filename}`;
@@ -586,7 +656,7 @@ router.put("/:id/upload-cover", uploadStoreImage.single("image"), async (req, re
 });
 
 // ── Add gallery image ──────────────────────────────────────────────────────
-router.post("/:id/gallery", uploadStoreImage.single("image"), async (req, res) => {
+router.post("/:id/gallery", verifyStoreOwner((req) => req.params.id), uploadStoreImage.single("image"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "No image uploaded" });
     const imageUrl = `${req.protocol}://${req.get("host")}/uploads/stores/${req.file.filename}`;
@@ -603,7 +673,7 @@ router.post("/:id/gallery", uploadStoreImage.single("image"), async (req, res) =
 });
 
 // ── Remove gallery image ───────────────────────────────────────────────────
-router.delete("/:id/gallery", async (req, res) => {
+router.delete("/:id/gallery", verifyStoreOwner((req) => req.params.id), async (req, res) => {
   try {
     const { url } = req.body;
     if (!url) return res.status(400).json({ message: "Image URL required" });

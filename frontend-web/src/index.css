@@ -1,0 +1,127 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-wine: #5b2333;
+  --color-wine-dark: #3e1825;
+  --color-plum: #2e1520;
+  --color-dusty-rose: #e8aabA;
+  --color-dusty-rose-light: #f3d4dc;
+  --color-gold: #d4af37;
+  --color-cream: #fbf8f5;
+  --color-soft-pink: #f8e8ec;
+  --color-beige: #f3ece4;
+  --color-ink: #202124;
+  --color-subtext: #7a7a7a;
+  --color-divider: #eeece9;
+  --color-danger: #d32f2f;
+  --color-success: #3f9142;
+
+  --font-display: "Playfair Display", serif;
+  --font-sans: "Poppins", system-ui, sans-serif;
+
+  --animate-fade-slide-in: fade-slide-in 0.6s ease-out both;
+  --animate-pop-in: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-shimmer: shimmer 2.5s linear infinite;
+  --animate-pulse-soft: pulse-soft 1.6s ease-in-out infinite;
+}
+
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+}
+
+/* Hide scrollbar for horizontal sliders while keeping it scrollable */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.snap-row {
+  scroll-snap-type: x mandatory;
+}
+.snap-item {
+  scroll-snap-align: start;
+}
+
+.gradient-banner {
+  background: linear-gradient(
+    135deg,
+    var(--color-wine) 0%,
+    #7a3349 50%,
+    var(--color-dusty-rose) 100%
+  );
+}
+
+.gradient-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-soft-pink) 25%,
+    var(--color-beige) 50%,
+    var(--color-soft-pink) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
+}

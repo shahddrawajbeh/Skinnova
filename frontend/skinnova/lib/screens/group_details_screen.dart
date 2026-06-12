@@ -340,27 +340,19 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        Container(
+                        SizedBox(
                           height: 180,
                           width: double.infinity,
-                          color: isMedicationGroup
-                              ? Colors.white
-                              : const Color(0xFFF5F5F5),
                           child: isMedicationGroup
-                              ? const SizedBox()
-                              : group!.coverImage.isNotEmpty
-                                  ? (group!.coverImage.startsWith("http")
-                                      ? Image.network(
-                                          group!.coverImage,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) =>
-                                              const SizedBox(),
-                                        )
-                                      : Image.asset(
-                                          group!.coverImage,
-                                          fit: BoxFit.cover,
-                                        ))
-                                  : const SizedBox(),
+                              ? Container(color: Colors.white)
+                              : GroupCoverImage(
+                                  imageUrl: group!.coverImage,
+                                  seed: group!.slug.isNotEmpty
+                                      ? group!.slug
+                                      : group!.title,
+                                  height: 180,
+                                  width: double.infinity,
+                                ),
                         ),
                         Positioned(
                           top: 16,
@@ -377,22 +369,18 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           left: 0,
                           right: 0,
                           child: Center(
-                            child: CircleAvatar(
-                              radius: 55,
-                              backgroundColor: Colors.white,
-                              child: CircleAvatar(
-                                radius: 51,
-                                backgroundColor: const Color(0xFFEAEAEA),
-                                backgroundImage: group!.profileImage.isNotEmpty
-                                    ? (group!.profileImage.startsWith("http")
-                                        ? NetworkImage(group!.profileImage)
-                                        : AssetImage(group!.profileImage)
-                                            as ImageProvider)
-                                    : null,
-                                child: group!.profileImage.isEmpty
-                                    ? const Icon(Icons.image,
-                                        size: 30, color: Colors.grey)
-                                    : null,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: GroupAvatar(
+                                imageUrl: group!.profileImage,
+                                seed: group!.slug.isNotEmpty
+                                    ? group!.slug
+                                    : group!.title,
+                                size: 102,
                               ),
                             ),
                           ),

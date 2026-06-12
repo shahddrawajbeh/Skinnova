@@ -122,26 +122,12 @@ class MyGroupsSlider extends StatelessWidget {
                                 end: Alignment.bottomRight,
                               ),
                             ),
-                            child: ClipOval(
-                              child: Container(
-                                color: const Color(0xFFEAEAEA),
-                                child: group.profileImage.isNotEmpty
-                                    ? Image.network(
-                                        group.profileImage,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            const Icon(
-                                          Icons.groups_rounded,
-                                          color: Colors.white,
-                                          size: 22,
-                                        ),
-                                      )
-                                    : const Icon(
-                                        Icons.groups_rounded,
-                                        color: Colors.white,
-                                        size: 22,
-                                      ),
-                              ),
+                            child: GroupAvatar(
+                              imageUrl: group.profileImage,
+                              seed: group.slug.isNotEmpty
+                                  ? group.slug
+                                  : group.title,
+                              size: 55,
                             ),
                           ),
                           if (group.hasNewActivity)
